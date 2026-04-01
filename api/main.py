@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.config import settings
 from api.database import init_db
-from api.routers import loads, negotiate, calls, dashboard
+from api.routers import carrier, loads, negotiate, calls, dashboard
 
 
 @asynccontextmanager
@@ -29,6 +29,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(carrier.router)
 app.include_router(loads.router)
 app.include_router(negotiate.router)
 app.include_router(calls.router)

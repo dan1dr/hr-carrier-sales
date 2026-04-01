@@ -44,9 +44,9 @@ class EvaluateOfferRequest(BaseModel):
     call_id: str
     load_id: str
     carrier_offer: float
-    round_number: int = Field(ge=1, le=3)
+    round_number: int = Field(ge=0, le=3)
+    mc_number: str | None = None
     carrier_sentiment: str | None = None
-    carrier_tier: str | None = "new"
 
 
 class EvaluateOfferResponse(BaseModel):

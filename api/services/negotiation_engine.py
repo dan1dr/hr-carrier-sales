@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.database import LoadRow, NegotiationConfigRow, OfferRow
+from api.database import CarrierRow, LoadRow, NegotiationConfigRow, OfferRow
 from api.models.schemas import EvaluateOfferRequest, EvaluateOfferResponse
 
 
@@ -36,8 +36,19 @@ def _margin_pct(agreed_rate: float, loadboard_rate: float) -> float:
     return round(((loadboard_rate - agreed_rate) / loadboard_rate) * 100, 1)
 
 
+async def _get_tier(db: AsyncSession, mc_number: str | None) -> str:
+    if not mc_number:
+        return "new"
+    result = await db.execute(
+        select(CarrierRow.tier).where(CarrierRow.mc_number == mc_number)
+    )
+    tier = result.scalar_one_or_none()
+    return tier or "new"
+
+
 async def evaluate_offer(db: AsyncSession, req: EvaluateOfferRequest) -> EvaluateOfferResponse:
-    config = await _get_config(db, req.carrier_tier or "new")
+    tier = await _get_tier(db, req.mc_number)
+    config = await _get_config(db, tier)
     loadboard_rate = await _get_loadboard_rate(db, req.load_id)
 
     floor_rate = loadboard_rate * config.floor_pct
@@ -59,7 +70,7 @@ async def evaluate_offer(db: AsyncSession, req: EvaluateOfferRequest) -> Evaluat
             f"I appreciate the offer, but ${offer:,.0f} is below what we can do on this lane. "
             f"The best I can offer is ${floor_rate * 1.02:,.0f}."
         )
-    elif rnd == 1:
+    elif rnd <= 1:
         if offer >= target_rate:
             decision = "accept"
             reason_code = "within_target_band"

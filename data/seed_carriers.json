@@ -1,6 +1,6 @@
 [
   {
-    "mc_number": "MC-123456",
+    "mc_number": "123456",
     "dot_number": "1234567",
     "legal_name": "FastFreight Logistics LLC",
     "carrier_status": "AUTHORIZED",
@@ -11,7 +11,7 @@
     "tier": "verified"
   },
   {
-    "mc_number": "MC-789012",
+    "mc_number": "789012",
     "dot_number": "7890123",
     "legal_name": "Quick Haul Inc",
     "carrier_status": "AUTHORIZED",
@@ -22,7 +22,7 @@
     "tier": "new"
   },
   {
-    "mc_number": "MC-345678",
+    "mc_number": "345678",
     "dot_number": "3456789",
     "legal_name": "Roadway Express Corp",
     "carrier_status": "AUTHORIZED",
@@ -33,7 +33,7 @@
     "tier": "new"
   },
   {
-    "mc_number": "MC-555555",
+    "mc_number": "555555",
     "dot_number": "5555555",
     "legal_name": "Premium Transport Solutions",
     "carrier_status": "AUTHORIZED",
