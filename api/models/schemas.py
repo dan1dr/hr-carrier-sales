@@ -8,9 +8,13 @@ from pydantic import BaseModel, Field
 
 class LoadSearchRequest(BaseModel):
     origin: str
-    destination: str
+    destination: str | None = None
     equipment_type: str | None = None
     pickup_date: str | None = None
+    delivery_date: str | None = None
+    weight: float | None = None
+    miles: float | None = None
+    load_id: str | None = None
 
 
 class LoadMatch(BaseModel):
