@@ -47,7 +47,7 @@ async def _get_tier(db: AsyncSession, mc_number: str | None) -> str:
 
 
 async def evaluate_offer(db: AsyncSession, req: EvaluateOfferRequest) -> EvaluateOfferResponse:
-    tier = await _get_tier(db, req.mc_number)
+    tier = req.carrier_tier or await _get_tier(db, req.mc_number)
     config = await _get_config(db, tier)
     loadboard_rate = await _get_loadboard_rate(db, req.load_id)
 

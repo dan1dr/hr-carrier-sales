@@ -46,6 +46,7 @@ class EvaluateOfferRequest(BaseModel):
     carrier_offer: float
     round_number: int = Field(ge=0, le=3)
     mc_number: str | None = None
+    carrier_tier: str | None = None
     carrier_sentiment: str | None = None
 
 
