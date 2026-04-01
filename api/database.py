@@ -106,8 +106,8 @@ class NegotiationConfigRow(Base):
     __tablename__ = "negotiation_configs"
 
     tier: Mapped[str] = mapped_column(Text, primary_key=True)
-    floor_pct: Mapped[float] = mapped_column(Float, default=0.85)
-    target_pct: Mapped[float] = mapped_column(Float, default=0.97)
+    open_pct: Mapped[float] = mapped_column(Float, default=0.85)
+    ceiling_pct: Mapped[float] = mapped_column(Float, default=1.00)
     max_rounds: Mapped[int] = mapped_column(Integer, default=3)
     urgency_boost_pct: Mapped[float] = mapped_column(Float, default=0.05)
     escalation_sensitivity: Mapped[str] = mapped_column(Text, default="medium")

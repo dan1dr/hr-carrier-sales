@@ -65,7 +65,7 @@ async def get_configs(
     rows = result.scalars().all()
     return [
         NegotiationConfig(
-            tier=r.tier, floor_pct=r.floor_pct, target_pct=r.target_pct,
+            tier=r.tier, open_pct=r.open_pct, ceiling_pct=r.ceiling_pct,
             max_rounds=r.max_rounds, urgency_boost_pct=r.urgency_boost_pct,
             escalation_sensitivity=r.escalation_sensitivity,
         )
@@ -87,8 +87,8 @@ async def update_config(
         row = NegotiationConfigRow(tier=config.tier)
         db.add(row)
 
-    row.floor_pct = config.floor_pct
-    row.target_pct = config.target_pct
+    row.open_pct = config.open_pct
+    row.ceiling_pct = config.ceiling_pct
     row.max_rounds = config.max_rounds
     row.urgency_boost_pct = config.urgency_boost_pct
     row.escalation_sensitivity = config.escalation_sensitivity

@@ -107,8 +107,8 @@ class DashboardMetrics(BaseModel):
 
 class NegotiationConfig(BaseModel):
     tier: str
-    floor_pct: float = 0.85
-    target_pct: float = 0.97
+    open_pct: float = 0.85
+    ceiling_pct: float = 1.00
     max_rounds: int = 3
     urgency_boost_pct: float = 0.05
     escalation_sensitivity: str = "medium"
