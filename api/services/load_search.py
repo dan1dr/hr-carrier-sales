@@ -219,28 +219,29 @@ async def search_loads(db: AsyncSession, req: LoadSearchRequest) -> LoadSearchRe
             scored.append((load, score, reasons))
 
     scored.sort(key=lambda x: x[1], reverse=True)
-    top = scored[:5]
+    best = scored[0] if scored else None
 
-    matches = [
-        LoadMatch(
-            load_id=load.load_id,
-            origin=f"{load.origin_city}, {load.origin_state}",
-            destination=f"{load.dest_city}, {load.dest_state}",
-            pickup_datetime=load.pickup_datetime,
-            delivery_datetime=load.delivery_datetime,
-            equipment_type=load.equipment_type,
-            loadboard_rate=load.loadboard_rate,
-            miles=load.miles,
-            weight=load.weight,
-            commodity_type=load.commodity_type,
-            score=score,
-            reason_codes=reasons,
-        )
-        for load, score, reasons in top
-    ]
+    if best is None:
+        return LoadSearchResponse(matches=[], recommended=None, total_matches=0)
+
+    load, score, reasons = best
+    match = LoadMatch(
+        load_id=load.load_id,
+        origin=f"{load.origin_city}, {load.origin_state}",
+        destination=f"{load.dest_city}, {load.dest_state}",
+        pickup_datetime=load.pickup_datetime,
+        delivery_datetime=load.delivery_datetime,
+        equipment_type=load.equipment_type,
+        loadboard_rate=load.loadboard_rate,
+        miles=load.miles,
+        weight=load.weight,
+        commodity_type=load.commodity_type,
+        score=score,
+        reason_codes=reasons,
+    )
 
     return LoadSearchResponse(
-        matches=matches,
-        recommended=matches[0].load_id if matches else None,
-        total_matches=len(matches),
+        matches=[match],
+        recommended=match.load_id,
+        total_matches=len(scored),
     )
