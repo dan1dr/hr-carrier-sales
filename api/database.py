@@ -77,21 +77,6 @@ class CallRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
-class OfferRow(Base):
-    __tablename__ = "offers"
-
-    offer_id: Mapped[str] = mapped_column(Text, primary_key=True, default=lambda: str(uuid.uuid4()))
-    call_id: Mapped[str] = mapped_column(Text, ForeignKey("calls.call_id"), nullable=False)
-    round_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    carrier_offer: Mapped[float] = mapped_column(Float, nullable=False)
-    agent_counter: Mapped[float | None] = mapped_column(Float)
-    decision: Mapped[str] = mapped_column(Text, nullable=False)
-    reason_code: Mapped[str | None] = mapped_column(Text)
-    floor_rate: Mapped[float | None] = mapped_column(Float)
-    target_rate: Mapped[float | None] = mapped_column(Float)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
-
-
 class EventRow(Base):
     __tablename__ = "events"
 

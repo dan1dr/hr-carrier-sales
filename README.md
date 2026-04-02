@@ -1,4 +1,4 @@
-     º# Inbound Carrier Sales Automation
+# Inbound Carrier Sales Automation
 
 Backend API for HappyRobot's inbound carrier sales voice workflow. Carriers call in, get matched to loads, negotiate pricing through a deterministic policy engine, and get transferred to dispatch.
 
@@ -6,18 +6,24 @@ Backend API for HappyRobot's inbound carrier sales voice workflow. Carriers call
 
 ```
 HappyRobot Voice Agent (platform)
-        │
-        │  x-api-key authenticated HTTP
-        ▼
+   ├── FMCSA verification (platform-side, via FMCSA QCMobile API)
+   │
+   │  x-api-key authenticated HTTP
+   ▼
    FastAPI Backend
-   ├── Load search (scored matching)
-   ├── Negotiation engine (deterministic pricing policy)
+   ├── Carrier lookup (DB → eligibility + tier for known carriers)
+   ├── Load search (adaptive multi-factor scoring)
+   ├── Negotiation params (tier-specific pricing targets)
+   ├── Negotiation engine (deterministic accept/counter/reject)
    ├── Call logging (event store + post-call extraction)
-   └── Dashboard metrics API
+   └── Dashboard metrics + config API
         │
-        ▼
-   SQLite (local) / PostgreSQL (prod)
+        ├──▼── SQLite (local) / PostgreSQL (prod)
+        │
+        └──▶── Azure Blob Storage (immutable audit trail)
 ```
+
+FMCSA carrier verification is handled by the HappyRobot platform (which calls the FMCSA QCMobile API directly with the API key configured there). The backend's `/carrier/lookup` endpoint returns the carrier's tier and eligibility from the local database — this is used for negotiation policy selection, not for regulatory verification.
 
 ## Endpoints
 
@@ -101,7 +107,6 @@ railway service    # select the service when prompted
 # 3. Set environment variables
 railway variables set API_KEY=<your-secure-api-key>
 railway variables set DATABASE_URL="sqlite+aiosqlite:///./data/carrier_sales.db"
-railway variables set FMCSA_MOCK_MODE=true
 railway variables set 'CORS_ORIGINS=["*"]'   # demo-only; restrict to specific origins in production
 
 # 4. Deploy
@@ -118,13 +123,16 @@ railway up
 
 ## Demo MC numbers
 
-| MC Number | Carrier | Status |
-|---|---|---|
-| MC-1580211 | GREYHOUND TRANSPORTATION INC | Real carrier — matches FMCSA QCMobile docket lookup + local DB tier |
-| MC-123456 | FastFreight Logistics LLC | Eligible (verified tier) |
-| MC-789012 | Quick Haul Inc | Ineligible — insurance expired |
-| MC-345678 | Roadway Express Corp | Ineligible — out of service |
-| MC-555555 | Premium Transport Solutions | Eligible (premium tier) |
+All seeded carriers use real FMCSA-registered MC numbers:
+
+| MC Number | Carrier | Tier | Status |
+|---|---|---|---|
+| MC-1580211 | GREYHOUND TRANSPORTATION INC | verified | Eligible |
+| MC-260313 | WANNEMACHER ENTERPRISES INC | new | Eligible |
+| MC-115554 | HEARTLAND EXPRESS INC OF IOWA | premium | Eligible |
+| MC-138328 | WERNER ENTERPRISES INC | verified | Eligible |
+
+Any MC number not in the database returns `found: false` with tier `new` and `eligible_to_book: false`.
 
 ## Negotiation Pricing Controls
 
@@ -142,13 +150,15 @@ These are stored in the `negotiation_configs` table and can be updated from the 
 
 ### How rates are computed
 
+The platform calls `POST /api/v1/negotiate/params` with the carrier's tier to get `open_pct`, `ceiling_pct`, and optional `offered_rate_override`. It then computes:
+
 ```
 offered_rate  = loadboard_rate × open_pct  (or override if set)
 ceiling_rate  = loadboard_rate × ceiling_pct
-followup_rate = midpoint of offered and ceiling (auto-computed)
+followup_rate = midpoint of offered and ceiling (computed by platform)
 ```
 
-Sentiment adjusts the offered_rate by up to ±3%: happy carriers get tighter offers, frustrated carriers get sweetened deals.
+These three rates are sent to `POST /api/v1/negotiate/evaluate` along with the carrier's counter-offer.
 
 ### Negotiation decision ladder
 
@@ -205,7 +215,20 @@ DATABASE_URL=postgresql+asyncpg://user:password@host:5432/dbname
 
 No code changes needed — SQLAlchemy handles both.
 
-Tables include: `loads`, `carriers`, `calls`, `offers`, `events`, `negotiation_configs`, `negotiation_sessions`.
+Tables: `loads`, `carriers`, `calls`, `events`, `negotiation_configs`, `negotiation_sessions`.
+
+## Azure Blob Storage (audit trail)
+
+Every call logged via `POST /api/v1/calls/log` is also uploaded to Azure Blob Storage as an immutable JSON file. This provides a compliance-grade audit trail — if a carrier disputes a negotiation, the brokerage has the complete event record with timestamps.
+
+**Blob path structure:**
+```
+carrier-sales-events/
+  └── call-logs/
+      └── 2026/04/02/{call_id}.json
+```
+
+**Configuration:** Set `AZURE_STORAGE_CONNECTION_STRING` in `.env`. If empty, blob uploads are silently skipped — calls are still logged to the local database. The upload is fire-and-forget: a failed upload never blocks the API response.
 
 ## Auth
 

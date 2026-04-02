@@ -5,7 +5,6 @@ narrows the search and boosts match quality. If load_id is given,
 we return that exact load (direct lookup).
 """
 
-import math
 from datetime import datetime
 
 from sqlalchemy import select
@@ -13,16 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.database import LoadRow
 from api.models.schemas import LoadMatch, LoadSearchRequest, LoadSearchResponse
-
-
-def _haversine_miles(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
-    R = 3959
-    dlat = math.radians(lat2 - lat1)
-    dlng = math.radians(lng2 - lng1)
-    a = (math.sin(dlat / 2) ** 2
-         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2))
-         * math.sin(dlng / 2) ** 2)
-    return R * 2 * math.asin(math.sqrt(a))
 
 
 def _parse_location(loc: str) -> tuple[str | None, str | None]:
