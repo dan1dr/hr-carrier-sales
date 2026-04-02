@@ -23,6 +23,7 @@ HappyRobot Voice Agent (platform)
 
 | Endpoint | Method | Purpose |
 |---|---|---|
+| `/api/v1/carrier/lookup/{mc_number}` | GET | Look up carrier eligibility and tier by MC number |
 | `/api/v1/loads/search` | POST | Find best loads for a carrier's lane/equipment |
 | `/api/v1/negotiate/evaluate` | POST | Evaluate carrier's price offer against policy |
 | `/api/v1/calls/log` | POST | Log call outcome, sentiment, extraction data |
@@ -100,12 +101,12 @@ railway service    # select the service when prompted
 railway variables set API_KEY=<your-secure-api-key>
 railway variables set DATABASE_URL="sqlite+aiosqlite:///./data/carrier_sales.db"
 railway variables set FMCSA_MOCK_MODE=true
-railway variables set 'CORS_ORIGINS=["*"]'
+railway variables set 'CORS_ORIGINS=["*"]'   # demo-only; restrict to specific origins in production
 
 # 4. Deploy
 railway up
 
-# 5. Generate a public HTTPS URL
+# 5. Generate a public HTTPS URL (TLS via Let's Encrypt, managed by Railway)
 railway domain
 ```
 

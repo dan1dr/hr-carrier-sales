@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Integer, Float, Text, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -51,7 +51,7 @@ class CarrierRow(Base):
     out_of_service: Mapped[bool] = mapped_column(Boolean, default=False)
     eligible_to_book: Mapped[bool] = mapped_column(Boolean, default=False)
     tier: Mapped[str] = mapped_column(Text, default="new")
-    cached_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    cached_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class CallRow(Base):
@@ -74,7 +74,7 @@ class CallRow(Base):
     handoff_required: Mapped[bool] = mapped_column(Boolean, default=False)
     call_duration_seconds: Mapped[int | None] = mapped_column(Integer)
     summary: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class OfferRow(Base):
@@ -89,7 +89,7 @@ class OfferRow(Base):
     reason_code: Mapped[str | None] = mapped_column(Text)
     floor_rate: Mapped[float | None] = mapped_column(Float)
     target_rate: Mapped[float | None] = mapped_column(Float)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class EventRow(Base):
@@ -99,7 +99,7 @@ class EventRow(Base):
     call_id: Mapped[str] = mapped_column(Text, nullable=False)
     event_type: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict | None] = mapped_column(JSON)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class NegotiationConfigRow(Base):
@@ -111,7 +111,7 @@ class NegotiationConfigRow(Base):
     max_rounds: Mapped[int] = mapped_column(Integer, default=3)
     urgency_boost_pct: Mapped[float] = mapped_column(Float, default=0.05)
     escalation_sensitivity: Mapped[str] = mapped_column(Text, default="medium")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 # ── Engine / Session ────────────────────────────────────────────────────────

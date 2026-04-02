@@ -2,7 +2,9 @@
 
 ## Critical path
 
-- [ ] Deploy API to cloud (Railway recommended — `railway up`)
+- [x] Deploy API to cloud — live at `https://hr-carrier-sales-production.up.railway.app`
+- [x] API key authentication on all endpoints (`x-api-key` header)
+- [x] HTTPS in production (Railway + Let's Encrypt)
 - [ ] Wire HappyRobot voice workflow (system prompt + 3 tool calls pointing at deployed API)
 - [ ] Build dashboard frontend (React + Chart.js in `dashboard/`)
 
@@ -22,7 +24,7 @@
 - [ ] PostgreSQL migration (swap SQLite → Azure Database for PostgreSQL)
 - [ ] Unit tests for negotiation engine (all policy branches, floor enforcement)
 - [ ] Unit tests for load search scoring
-- [ ] HTTPS + HMAC webhook signature verification
+- [ ] HMAC webhook signature verification
 
 ## Docs & deliverables
 
