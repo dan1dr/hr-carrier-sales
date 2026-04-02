@@ -20,6 +20,7 @@
 - [x] CORS middleware
 - [x] Pydantic schemas with empty-string coercion for HappyRobot compatibility
 - [x] Makefile (`dev`, `seed`, `test`, `docker-up`, `docker-down`)
+- [x] Azure Blob Storage — immutable audit trail for call events (uploads to `carrier-sales-events` container on every `log_call`)
 
 ## Critical path
 
@@ -37,7 +38,6 @@
 
 ## Nice to have
 
-- [ ] Azure Blob Storage for call event audit logs
 - [ ] Azure Entra ID for dashboard RBAC (admin / viewer roles)
 - [ ] PostgreSQL migration (swap SQLite → Azure Database for PostgreSQL)
 - [ ] Unit tests for negotiation engine (all policy branches)

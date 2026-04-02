@@ -1,7 +1,7 @@
 """Pydantic request/response schemas for the API."""
 
 from datetime import datetime
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 def _empty_to_none(v):
@@ -97,6 +97,15 @@ class EvaluateOfferResponse(BaseModel):
 
 # ── Call Logging ────────────────────────────────────────────────────────────
 
+_SENTIMENT_MAP = {
+    -2: "frustrated",
+    -1: "negative",
+    0: "neutral",
+    1: "positive",
+    2: "positive",
+}
+
+
 class LogCallRequest(BaseModel):
     call_id: str | None = None
     carrier_name: str | None = None
@@ -116,9 +125,40 @@ class LogCallRequest(BaseModel):
     margin_retained_pct: float | None = None
     outcome: str  # booked | no_match | declined_by_carrier | failed_verification | escalated | dropped
     sentiment: str | None = None
+    sentiment_score: int | None = None
+    sentiment_reasoning: str | None = None
+    outcome_reasoning: str | None = None
+    offered_rate: float | None = None
+    carrier_last_price: float | None = None
     handoff_required: bool = False
     call_duration_seconds: int | None = None
     summary: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_empty_strings(cls, values):
+        if not isinstance(values, dict):
+            return values
+        nullable_numeric = (
+            "loadboard_rate", "initial_carrier_ask", "final_rate",
+            "offered_rate", "carrier_last_price", "margin_retained_pct",
+            "sentiment_score", "call_duration_seconds",
+        )
+        for field in nullable_numeric:
+            v = values.get(field)
+            if isinstance(v, str) and not v.strip():
+                values[field] = None
+        if isinstance(values.get("negotiation_rounds"), str) and not values["negotiation_rounds"].strip():
+            values["negotiation_rounds"] = 0
+        return values
+
+    def resolve_sentiment(self) -> str | None:
+        """Return a label from explicit sentiment or mapped from sentiment_score."""
+        if self.sentiment:
+            return self.sentiment
+        if self.sentiment_score is not None:
+            return _SENTIMENT_MAP.get(self.sentiment_score, "neutral")
+        return None
 
 
 class LogCallResponse(BaseModel):
