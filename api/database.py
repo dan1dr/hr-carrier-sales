@@ -102,6 +102,19 @@ class EventRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class NegotiationSessionRow(Base):
+    """Tracks negotiation round per carrier+load; idle TTL resets the round."""
+
+    __tablename__ = "negotiation_sessions"
+
+    mc_number: Mapped[str] = mapped_column(Text, primary_key=True)
+    load_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    current_round: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
+
+
 class NegotiationConfigRow(Base):
     __tablename__ = "negotiation_configs"
 
