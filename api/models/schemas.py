@@ -142,3 +142,24 @@ class NegotiationConfig(BaseModel):
     max_rounds: int = 3
     urgency_boost_pct: float = 0.05
     escalation_sensitivity: str = "medium"
+    offered_rate_override: float | None = None
+
+
+# ── Pricing Params (called by platform before computing rates) ──────────
+
+class PricingParamsRequest(BaseModel):
+    tier: str = "new"
+
+    @field_validator("tier", mode="before")
+    @classmethod
+    def coerce_tier(cls, v):
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return "new"
+        return v.strip().lower()
+
+
+class PricingParamsResponse(BaseModel):
+    tier: str
+    open_pct: float
+    ceiling_pct: float
+    offered_rate_override: float | None = None

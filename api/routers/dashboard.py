@@ -68,6 +68,7 @@ async def get_configs(
             tier=r.tier, open_pct=r.open_pct, ceiling_pct=r.ceiling_pct,
             max_rounds=r.max_rounds, urgency_boost_pct=r.urgency_boost_pct,
             escalation_sensitivity=r.escalation_sensitivity,
+            offered_rate_override=r.offered_rate_override,
         )
         for r in rows
     ]
@@ -92,6 +93,7 @@ async def update_config(
     row.max_rounds = config.max_rounds
     row.urgency_boost_pct = config.urgency_boost_pct
     row.escalation_sensitivity = config.escalation_sensitivity
+    row.offered_rate_override = config.offered_rate_override
 
     await db.commit()
     return config
