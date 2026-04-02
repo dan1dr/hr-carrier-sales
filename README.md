@@ -118,6 +118,7 @@ railway up
 
 | MC Number | Carrier | Status |
 |---|---|---|
+| MC-1580211 | GREYHOUND TRANSPORTATION INC | Real carrier — matches FMCSA QCMobile docket lookup + local DB tier |
 | MC-123456 | FastFreight Logistics LLC | Eligible (verified tier) |
 | MC-789012 | Quick Haul Inc | Ineligible — insurance expired |
 | MC-345678 | Roadway Express Corp | Ineligible — out of service |

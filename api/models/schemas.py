@@ -1,7 +1,16 @@
 """Pydantic request/response schemas for the API."""
 
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+def _empty_to_none(v):
+    """HappyRobot / JSON templates often send '' for missing optional fields."""
+    if v is None:
+        return None
+    if isinstance(v, str) and not v.strip():
+        return None
+    return v
 
 
 # ── Loads ───────────────────────────────────────────────────────────────────
@@ -15,6 +24,17 @@ class LoadSearchRequest(BaseModel):
     weight: float | None = None
     miles: float | None = None
     load_id: str | None = None
+
+    @field_validator("weight", "miles", mode="before")
+    @classmethod
+    def optional_floats_coerce(cls, v):
+        return _empty_to_none(v)
+
+    @field_validator("destination", "equipment_type", "pickup_date", "delivery_date", "load_id", mode="before")
+    @classmethod
+    def optional_strings_trim_empty(cls, v):
+        out = _empty_to_none(v)
+        return out
 
 
 class LoadMatch(BaseModel):

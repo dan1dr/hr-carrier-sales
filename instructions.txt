@@ -15,20 +15,20 @@ calls from carriers.
 ● The loads will be searched using an API in a file or DB which will contain the context
 within the following fields for each load:
 
-Field 	Description
-load_id 	Unique identifier for the load
-origin 	Starting location
-destination 	Delivery location
-pickup_datetime Date and time for pickup
-delivery_datetime Date and time for delivery
-equipment_type Type of equipment needed
-loadboard_rate 	Listed rate for the load
-notes 	Additional information
-weight 	Load weight
-commodity_type Type of goods
-num_of_pieces 	Number of items
-miles 	Distance to travel
-dimensions 	Size measurements
+Field               Required?   Description                         Format
+load_id             —           Unique identifier for the load       string
+origin              REQUIRED    Starting location (city, state)      "Chicago, IL"
+destination         optional    Delivery location (city, state)      "Dallas, TX"
+pickup_datetime     optional    Pickup date and time                 ISO 8601 (2026-04-03T08:00:00)
+delivery_datetime   optional    Delivery date and time               ISO 8601 (2026-04-04T16:00:00)
+equipment_type      optional    Type of equipment needed             dry_van | reefer | flatbed
+loadboard_rate      —           Listed rate for the load             number (dollars)
+notes               —           Additional information               string
+weight              optional    Load weight (lbs)                    number
+commodity_type      —           Type of goods                        string
+num_of_pieces       —           Number of items                      integer
+miles               optional    Distance to travel                   number
+dimensions          —           Size measurements                    string
 
 ● The assistant must:
 ○ Get their MC number and verify they are eligible to work with using the FMCSA

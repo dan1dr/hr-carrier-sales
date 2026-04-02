@@ -115,13 +115,13 @@ def score_load(load: LoadRow, req: LoadSearchRequest, now: datetime) -> tuple[fl
 
     # Origin — always present, always weighted heavily
     o_city, o_state = _parse_location(req.origin)
-    o_score, o_reason = _score_city_state(o_city, o_state, load.origin_city, load.origin_state)
+    o_score, o_reason = _score_city_state(o_city, o_state, load.origin, load.origin_state)
     factors.append((o_score, 35, o_reason))
 
     # Destination — if provided
     if req.destination:
         d_city, d_state = _parse_location(req.destination)
-        d_score, d_reason = _score_city_state(d_city, d_state, load.dest_city, load.dest_state)
+        d_score, d_reason = _score_city_state(d_city, d_state, load.destination, load.destination_state)
         factors.append((d_score, 30, d_reason))
 
     # Equipment — if provided
@@ -189,8 +189,8 @@ async def search_loads(db: AsyncSession, req: LoadSearchRequest) -> LoadSearchRe
         return LoadSearchResponse(
             matches=[LoadMatch(
                 load_id=load.load_id,
-                origin=f"{load.origin_city}, {load.origin_state}",
-                destination=f"{load.dest_city}, {load.dest_state}",
+                origin=f"{load.origin}, {load.origin_state}",
+                destination=f"{load.destination}, {load.destination_state}",
                 pickup_datetime=load.pickup_datetime,
                 delivery_datetime=load.delivery_datetime,
                 equipment_type=load.equipment_type,
@@ -227,8 +227,8 @@ async def search_loads(db: AsyncSession, req: LoadSearchRequest) -> LoadSearchRe
     load, score, reasons = best
     match = LoadMatch(
         load_id=load.load_id,
-        origin=f"{load.origin_city}, {load.origin_state}",
-        destination=f"{load.dest_city}, {load.dest_state}",
+        origin=f"{load.origin}, {load.origin_state}",
+        destination=f"{load.destination}, {load.destination_state}",
         pickup_datetime=load.pickup_datetime,
         delivery_datetime=load.delivery_datetime,
         equipment_type=load.equipment_type,
