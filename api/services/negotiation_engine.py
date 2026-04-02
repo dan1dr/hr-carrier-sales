@@ -19,6 +19,14 @@ def evaluate_offer(req: EvaluateOfferRequest) -> EvaluateOfferResponse:
     followup = req.followup_rate
     ceiling = req.ceiling_rate
 
+    # ── no price from carrier → lead with followup_rate ─────────────
+    if not offer:
+        return EvaluateOfferResponse(
+            decision="counter",
+            counter_rate=followup,
+            explanation_text=f"I can do ${followup:,.0f} on this lane. Does that work for you?",
+        )
+
     # ── carrier asks ≤ offered → instant accept ─────────────────────
     if offer <= offered:
         return EvaluateOfferResponse(
