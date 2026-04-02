@@ -64,10 +64,24 @@ class LoadSearchResponse(BaseModel):
 
 class EvaluateOfferRequest(BaseModel):
     carrier_offer: float
-    round_number: int = Field(ge=0, le=2)
+    round_number: int = Field(default=0, ge=0, le=2)
     offered_rate: float
     followup_rate: float
     ceiling_rate: float
+
+    @field_validator("round_number", mode="before")
+    @classmethod
+    def coerce_round_number(cls, v):
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return 0
+        return int(v)
+
+    @field_validator("carrier_offer", "offered_rate", "followup_rate", "ceiling_rate", mode="before")
+    @classmethod
+    def coerce_floats(cls, v):
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return 0.0
+        return float(v)
 
 
 class EvaluateOfferResponse(BaseModel):
