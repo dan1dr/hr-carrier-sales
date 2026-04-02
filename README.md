@@ -160,6 +160,17 @@ The backend (`POST /api/v1/negotiate/evaluate`) takes the platform-computed rate
 | R1 | accept | accept | accept | counter @ ceiling |
 | R2 | accept | accept | accept | reject |
 
+### Server-side round tracking
+
+Do **not** send `round_number` in the request body — it is not accepted. Always send **`mc_number`** and **`load_id`** with every `/negotiate/evaluate` call:
+
+- The API stores the current negotiation round per `(mc_number, load_id)` in the `negotiation_sessions` table.
+- Each **`counter`** response advances the stored round (capped at 2).
+- **`accept`** or **`reject`** clears the session for that pair.
+- If there is **no call for 3 minutes**, the round resets to **0** (idle TTL).
+
+The response includes **`round_number`**: the round the server used for this evaluation (for logging or debugging only).
+
 ### Dashboard usage example
 
 ```bash
@@ -194,7 +205,7 @@ DATABASE_URL=postgresql+asyncpg://user:password@host:5432/dbname
 
 No code changes needed — SQLAlchemy handles both.
 
-Six tables: `loads`, `carriers`, `calls`, `offers`, `events`, `negotiation_configs`.
+Tables include: `loads`, `carriers`, `calls`, `offers`, `events`, `negotiation_configs`, `negotiation_sessions`.
 
 ## Auth
 

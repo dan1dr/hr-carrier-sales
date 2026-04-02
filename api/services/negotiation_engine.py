@@ -12,62 +12,81 @@ accept / counter / reject / escalate.
 from api.models.schemas import EvaluateOfferRequest, EvaluateOfferResponse
 
 
-def evaluate_offer(req: EvaluateOfferRequest) -> EvaluateOfferResponse:
+def evaluate_offer(req: EvaluateOfferRequest, round_number: int) -> EvaluateOfferResponse:
     offer = req.carrier_offer
-    rnd = req.round_number
+    rnd = round_number
     offered = req.offered_rate
     followup = req.followup_rate
     ceiling = req.ceiling_rate
 
+    def with_round(resp: EvaluateOfferResponse) -> EvaluateOfferResponse:
+        return resp.model_copy(update={"round_number": rnd})
+
     # ── no price from carrier → lead with followup_rate ─────────────
     if not offer:
-        return EvaluateOfferResponse(
-            decision="counter",
-            counter_rate=followup,
-            explanation_text=f"I can do ${followup:,.0f} on this lane. Does that work for you?",
+        return with_round(
+            EvaluateOfferResponse(
+                decision="counter",
+                counter_rate=followup,
+                explanation_text=f"I can do ${followup:,.0f} on this lane. Does that work for you?",
+            )
         )
 
     # ── carrier asks ≤ offered → instant accept ─────────────────────
     if offer <= offered:
-        return EvaluateOfferResponse(
-            decision="accept",
-            explanation_text=f"${offer:,.0f} works for us. Let me get you set up with dispatch.",
+        return with_round(
+            EvaluateOfferResponse(
+                decision="accept",
+                explanation_text=f"${offer:,.0f} works for us. Let me get you set up with dispatch.",
+            )
         )
 
     # ── carrier asks ≤ followup → accept ────────────────────────────
     if offer <= followup:
-        return EvaluateOfferResponse(
-            decision="accept",
-            explanation_text=f"${offer:,.0f} works for us. Let me get you set up with dispatch.",
+        return with_round(
+            EvaluateOfferResponse(
+                decision="accept",
+                explanation_text=f"${offer:,.0f} works for us. Let me get you set up with dispatch.",
+            )
         )
 
     # ── carrier asks between followup and ceiling ───────────────────
     if offer <= ceiling:
         if rnd == 0:
-            return EvaluateOfferResponse(
-                decision="counter",
-                counter_rate=followup,
-                explanation_text=f"I can do ${followup:,.0f}. That's a strong rate for this lane and timing.",
+            return with_round(
+                EvaluateOfferResponse(
+                    decision="counter",
+                    counter_rate=followup,
+                    explanation_text=f"I can do ${followup:,.0f}. That's a strong rate for this lane and timing.",
+                )
             )
-        return EvaluateOfferResponse(
-            decision="accept",
-            explanation_text=f"${offer:,.0f} works for us. Let me get you set up with dispatch.",
+        return with_round(
+            EvaluateOfferResponse(
+                decision="accept",
+                explanation_text=f"${offer:,.0f} works for us. Let me get you set up with dispatch.",
+            )
         )
 
     # ── carrier asks above ceiling ──────────────────────────────────
     if rnd == 0:
-        return EvaluateOfferResponse(
-            decision="counter",
-            counter_rate=followup,
-            explanation_text=f"I understand you're looking for more, but the best I can do right now is ${followup:,.0f}.",
+        return with_round(
+            EvaluateOfferResponse(
+                decision="counter",
+                counter_rate=followup,
+                explanation_text=f"I understand you're looking for more, but the best I can do right now is ${followup:,.0f}.",
+            )
         )
     if rnd == 1:
-        return EvaluateOfferResponse(
-            decision="counter",
-            counter_rate=ceiling,
-            explanation_text=f"My absolute best is ${ceiling:,.0f}. If that works, I can get you booked right now.",
+        return with_round(
+            EvaluateOfferResponse(
+                decision="counter",
+                counter_rate=ceiling,
+                explanation_text=f"My absolute best is ${ceiling:,.0f}. If that works, I can get you booked right now.",
+            )
         )
-    return EvaluateOfferResponse(
-        decision="reject",
-        explanation_text=f"My best and final is ${ceiling:,.0f}. I can't go higher than that on this lane.",
+    return with_round(
+        EvaluateOfferResponse(
+            decision="reject",
+            explanation_text=f"My best and final is ${ceiling:,.0f}. I can't go higher than that on this lane.",
+        )
     )

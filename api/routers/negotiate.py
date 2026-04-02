@@ -11,6 +11,7 @@ from api.models.schemas import (
     PricingParamsResponse,
 )
 from api.services.negotiation_engine import evaluate_offer
+from api.services.negotiation_session import persist_after_evaluate, resolve_round
 
 router = APIRouter(prefix="/api/v1/negotiate", tags=["negotiate"])
 
@@ -42,6 +43,13 @@ async def get_pricing_params(
 @router.post("/evaluate", response_model=EvaluateOfferResponse)
 async def evaluate(
     req: EvaluateOfferRequest,
+    db: AsyncSession = Depends(get_db),
     _key: str = Depends(require_api_key),
 ):
-    return evaluate_offer(req)
+    rnd, session_row = await resolve_round(db, req.mc_number, req.load_id)
+    resp = evaluate_offer(req, rnd)
+    await persist_after_evaluate(
+        db, req.mc_number, req.load_id, session_row, rnd, resp
+    )
+    await db.commit()
+    return resp

@@ -61,20 +61,24 @@ class LoadSearchResponse(BaseModel):
 # ── Negotiation ─────────────────────────────────────────────────────────────
 # Platform computes offered/followup/ceiling. This endpoint only decides
 # what to do when the carrier counters with a price.
+# Round number is never sent by the client — it is resolved server-side
+# from (mc_number, load_id) session state.
 
 class EvaluateOfferRequest(BaseModel):
     carrier_offer: float
-    round_number: int = Field(default=0, ge=0, le=2)
     offered_rate: float
     followup_rate: float
     ceiling_rate: float
+    mc_number: str
+    load_id: str
 
-    @field_validator("round_number", mode="before")
+    @field_validator("mc_number", "load_id", mode="before")
     @classmethod
-    def coerce_round_number(cls, v):
-        if v is None or (isinstance(v, str) and not v.strip()):
-            return 0
-        return int(v)
+    def require_mc_load(cls, v):
+        out = _empty_to_none(v)
+        if out is None:
+            raise ValueError("mc_number and load_id are required")
+        return str(out).strip()
 
     @field_validator("carrier_offer", "offered_rate", "followup_rate", "ceiling_rate", mode="before")
     @classmethod
@@ -88,6 +92,7 @@ class EvaluateOfferResponse(BaseModel):
     decision: str  # accept | counter | reject | escalate
     counter_rate: float | None = None
     explanation_text: str
+    round_number: int = 0
 
 
 # ── Call Logging ────────────────────────────────────────────────────────────
