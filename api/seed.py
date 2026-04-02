@@ -40,7 +40,7 @@ async def seed():
                 db.add(NegotiationConfigRow(**item))
 
         await db.commit()
-        print("Seeded: 30 loads, 5 carriers, 3 negotiation configs.")
+        print("Seeded: 30 loads, 4 carriers, 3 negotiation configs.")
 
 
 if __name__ == "__main__":

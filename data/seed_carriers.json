@@ -11,47 +11,36 @@
     "tier": "verified"
   },
   {
-    "mc_number": "123456",
-    "dot_number": "1234567",
-    "legal_name": "FastFreight Logistics LLC",
+    "mc_number": "260313",
+    "dot_number": "322029",
+    "legal_name": "WANNEMACHER ENTERPRISES INC",
     "carrier_status": "AUTHORIZED",
     "insurance_status": "ACTIVE",
     "safety_rating": "SATISFACTORY",
     "out_of_service": false,
     "eligible_to_book": true,
-    "tier": "verified"
-  },
-  {
-    "mc_number": "789012",
-    "dot_number": "7890123",
-    "legal_name": "Quick Haul Inc",
-    "carrier_status": "AUTHORIZED",
-    "insurance_status": "EXPIRED",
-    "safety_rating": "SATISFACTORY",
-    "out_of_service": false,
-    "eligible_to_book": false,
     "tier": "new"
   },
   {
-    "mc_number": "345678",
-    "dot_number": "3456789",
-    "legal_name": "Roadway Express Corp",
-    "carrier_status": "AUTHORIZED",
-    "insurance_status": "ACTIVE",
-    "safety_rating": "CONDITIONAL",
-    "out_of_service": true,
-    "eligible_to_book": false,
-    "tier": "new"
-  },
-  {
-    "mc_number": "555555",
-    "dot_number": "5555555",
-    "legal_name": "Premium Transport Solutions",
+    "mc_number": "115554",
+    "dot_number": "134697",
+    "legal_name": "HEARTLAND EXPRESS INC OF IOWA",
     "carrier_status": "AUTHORIZED",
     "insurance_status": "ACTIVE",
     "safety_rating": "SATISFACTORY",
     "out_of_service": false,
     "eligible_to_book": true,
     "tier": "premium"
+  },
+  {
+    "mc_number": "138328",
+    "dot_number": "53467",
+    "legal_name": "WERNER ENTERPRISES INC",
+    "carrier_status": "AUTHORIZED",
+    "insurance_status": "ACTIVE",
+    "safety_rating": "SATISFACTORY",
+    "out_of_service": false,
+    "eligible_to_book": true,
+    "tier": "verified"
   }
 ]
