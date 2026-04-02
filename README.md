@@ -25,6 +25,7 @@ HappyRobot Voice Agent (platform)
 |---|---|---|
 | `/api/v1/carrier/lookup/{mc_number}` | GET | Look up carrier eligibility and tier by MC number |
 | `/api/v1/loads/search` | POST | Find best loads for a carrier's lane/equipment |
+| `/api/v1/negotiate/params` | POST | Get pricing params (open_pct, ceiling_pct, override) for a tier |
 | `/api/v1/negotiate/evaluate` | POST | Evaluate carrier's price offer against policy |
 | `/api/v1/calls/log` | POST | Log call outcome, sentiment, extraction data |
 | `/api/v1/dashboard/metrics` | GET | Aggregated metrics for dashboard |
@@ -124,6 +125,60 @@ railway up
 | MC-789012 | Quick Haul Inc | Ineligible — insurance expired |
 | MC-345678 | Roadway Express Corp | Ineligible — out of service |
 | MC-555555 | Premium Transport Solutions | Eligible (premium tier) |
+
+## Negotiation Pricing Controls
+
+The negotiation system uses a two-stage flow: the HappyRobot platform computes rate targets, and the backend decides accept/counter/reject when the carrier counters.
+
+### Tunable parameters (per carrier tier)
+
+These are stored in the `negotiation_configs` table and can be updated from the dashboard via `PUT /api/v1/dashboard/config`.
+
+| Param | Type | Description | Defaults (new / verified / premium) |
+|---|---|---|---|
+| `open_pct` | float | Starting offer as a % of loadboard rate. Lower = more aggressive. | 0.85 / 0.90 / 0.93 |
+| `ceiling_pct` | float | Max we'll ever pay as a % of loadboard rate. Higher = more flexible. | 1.00 / 1.03 / 1.07 |
+| `offered_rate_override` | float or null | Hard dollar override for the offer. Bypasses `open_pct` when set. Set to `null` to use percentage-based calculation. | null / null / null |
+
+### How rates are computed
+
+```
+offered_rate  = loadboard_rate × open_pct  (or override if set)
+ceiling_rate  = loadboard_rate × ceiling_pct
+followup_rate = midpoint of offered and ceiling (auto-computed)
+```
+
+Sentiment adjusts the offered_rate by up to ±3%: happy carriers get tighter offers, frustrated carriers get sweetened deals.
+
+### Negotiation decision ladder
+
+The backend (`POST /api/v1/negotiate/evaluate`) takes the platform-computed rates + the carrier's counter and returns a deterministic decision:
+
+| Round | carrier ≤ offered | carrier ≤ followup | carrier ≤ ceiling | carrier > ceiling |
+|---|---|---|---|---|
+| R0 | accept | accept | counter @ followup | counter @ followup |
+| R1 | accept | accept | accept | counter @ ceiling |
+| R2 | accept | accept | accept | reject |
+
+### Dashboard usage example
+
+```bash
+# Make the "new" tier more aggressive (lower open, tighter ceiling)
+curl -X PUT "https://hr-carrier-sales-production.up.railway.app/api/v1/dashboard/config" \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: hr-carrier-sales-2026-prod" \
+  -d '{
+    "tier": "new",
+    "open_pct": 0.82,
+    "ceiling_pct": 0.97,
+    "max_rounds": 3,
+    "urgency_boost_pct": 0.03,
+    "escalation_sensitivity": "high",
+    "offered_rate_override": null
+  }'
+```
+
+Changes take effect on the next call — no redeploy needed.
 
 ## Database
 
