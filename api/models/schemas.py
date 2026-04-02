@@ -59,25 +59,21 @@ class LoadSearchResponse(BaseModel):
 
 
 # ── Negotiation ─────────────────────────────────────────────────────────────
+# Platform computes offered/followup/ceiling. This endpoint only decides
+# what to do when the carrier counters with a price.
 
 class EvaluateOfferRequest(BaseModel):
-    call_id: str
-    load_id: str
     carrier_offer: float
-    round_number: int = Field(ge=0, le=3)
-    mc_number: str | None = None
-    carrier_tier: str | None = None
-    carrier_sentiment: str | None = None
+    round_number: int = Field(ge=0, le=2)
+    offered_rate: float
+    followup_rate: float
+    ceiling_rate: float
 
 
 class EvaluateOfferResponse(BaseModel):
     decision: str  # accept | counter | reject | escalate
     counter_rate: float | None = None
-    reason_code: str
     explanation_text: str
-    floor_hit: bool = False
-    round: int
-    margin_retained_pct: float | None = None
 
 
 # ── Call Logging ────────────────────────────────────────────────────────────
