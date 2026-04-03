@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 
 from api.database import (
     engine, async_session, Base,
@@ -14,8 +14,25 @@ from api.database import (
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
+_FK_DROPS = [
+    "ALTER TABLE calls DROP CONSTRAINT IF EXISTS calls_mc_number_fkey",
+    "ALTER TABLE calls DROP CONSTRAINT IF EXISTS calls_recommended_load_id_fkey",
+]
+
+
+async def _apply_migrations():
+    """Drop stale foreign keys that block logging calls for unknown carriers/loads."""
+    async with engine.begin() as conn:
+        for stmt in _FK_DROPS:
+            try:
+                await conn.execute(text(stmt))
+            except Exception:
+                pass
+
 
 async def seed():
+    await _apply_migrations()
+
     async with async_session() as db:
         try:
             load_count = (await db.execute(select(func.count(LoadRow.load_id)))).scalar() or 0
