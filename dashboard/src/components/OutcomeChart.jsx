@@ -5,11 +5,11 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 ChartJS.register(ArcElement, Tooltip, Legend)
 
 const outcomeConfig = {
-  booked:              { label: 'Booked',              color: '#059669' },
+  booked:              { label: 'Booked',              color: '#10b981' },
   no_match:            { label: 'No Match',            color: '#a8a29e' },
-  declined_by_carrier: { label: 'Declined',            color: '#d97706' },
-  failed_verification: { label: 'Failed Verification', color: '#e11d48' },
-  escalated:           { label: 'Escalated',           color: '#7c3aed' },
+  declined_by_carrier: { label: 'Declined',            color: '#f59e0b' },
+  failed_verification: { label: 'Failed Verification', color: '#ef4444' },
+  escalated:           { label: 'Escalated',           color: '#8b5cf6' },
   dropped:             { label: 'Dropped',             color: '#78716c' },
   unknown:             { label: 'Unknown',             color: '#d6d3d1' },
 }
@@ -27,15 +27,16 @@ export default function OutcomeChart({ breakdown }) {
     labels,
     datasets: [{
       data: values,
-      backgroundColor: colors,
-      borderWidth: 0,
+      backgroundColor: colors.map((c) => `${c}30`),
+      borderColor: colors,
+      borderWidth: 2,
     }],
   }
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    cutout: '82%',
+    cutout: '78%',
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -73,7 +74,10 @@ export default function OutcomeChart({ breakdown }) {
             const pct = ((val / total) * 100).toFixed(0)
             return (
               <div key={key} className="flex items-center gap-2.5 text-[13px]">
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cfg.color }} />
+                <div
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: cfg.color }}
+                />
                 <span className="text-text-secondary flex-1">{cfg.label}</span>
                 <span className="font-medium text-text-primary tabular-nums">{val}</span>
                 <span className="text-text-muted w-8 text-right tabular-nums text-[11px]">{pct}%</span>

@@ -2,25 +2,16 @@
   {
     "tier": "new",
     "open_pct": 0.85,
-    "ceiling_pct": 1.00,
-    "max_rounds": 3,
-    "urgency_boost_pct": 0.03,
-    "escalation_sensitivity": "high"
+    "ceiling_pct": 1.00
   },
   {
     "tier": "verified",
     "open_pct": 0.90,
-    "ceiling_pct": 1.03,
-    "max_rounds": 3,
-    "urgency_boost_pct": 0.05,
-    "escalation_sensitivity": "medium"
+    "ceiling_pct": 1.03
   },
   {
     "tier": "premium",
     "open_pct": 0.93,
-    "ceiling_pct": 1.07,
-    "max_rounds": 3,
-    "urgency_boost_pct": 0.07,
-    "escalation_sensitivity": "low"
+    "ceiling_pct": 1.07
   }
 ]

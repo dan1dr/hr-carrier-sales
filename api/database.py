@@ -104,9 +104,6 @@ class NegotiationConfigRow(Base):
     tier: Mapped[str] = mapped_column(Text, primary_key=True)
     open_pct: Mapped[float] = mapped_column(Float, default=0.85)
     ceiling_pct: Mapped[float] = mapped_column(Float, default=1.00)
-    max_rounds: Mapped[int] = mapped_column(Integer, default=3)
-    urgency_boost_pct: Mapped[float] = mapped_column(Float, default=0.05)
-    escalation_sensitivity: Mapped[str] = mapped_column(Text, default="medium")
     offered_rate_override: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

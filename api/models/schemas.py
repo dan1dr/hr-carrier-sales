@@ -212,9 +212,6 @@ class NegotiationConfig(BaseModel):
     tier: str
     open_pct: float = 0.85
     ceiling_pct: float = 1.00
-    max_rounds: int = 3
-    urgency_boost_pct: float = 0.05
-    escalation_sensitivity: str = "medium"
     offered_rate_override: float | None = None
 
 

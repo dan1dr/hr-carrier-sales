@@ -207,7 +207,7 @@ No code changes needed — SQLAlchemy handles both via async drivers.
 | `carriers` | Carrier profiles (MC number, tier, eligibility, FMCSA data) |
 | `calls` | Call log (outcome, sentiment, rates, duration, timestamps) |
 | `events` | Event store (call_completed events with full payload) |
-| `negotiation_configs` | Per-tier pricing policy (open_pct, ceiling_pct, max_rounds) |
+| `negotiation_configs` | Per-tier pricing policy (open_pct, ceiling_pct, offered_rate_override) |
 | `negotiation_sessions` | Active negotiation state per carrier+load pair |
 
 ## Azure Blob Storage (audit trail)
@@ -246,6 +246,45 @@ Stored in `negotiation_configs` table, editable from the dashboard via `PUT /api
 | `open_pct` | float | Starting offer as % of loadboard rate | 0.85 / 0.90 / 0.93 |
 | `ceiling_pct` | float | Max rate as % of loadboard rate | 1.00 / 1.03 / 1.07 |
 | `offered_rate_override` | float or null | Hard dollar override (null = use %) | null / null / null |
+
+### How each parameter works
+
+**Opening Offer % (`open_pct`)**
+
+The first rate the platform quotes to a carrier. It is computed as a percentage of the loadboard rate:
+
+```
+offered_rate = loadboard_rate × open_pct
+```
+
+A lower `open_pct` means a more aggressive opening offer (further below loadboard), leaving more room for margin. For example, with a loadboard rate of $2,000:
+- `open_pct = 0.85` → offered rate = $1,700 (15% below loadboard)
+- `open_pct = 0.93` → offered rate = $1,860 (7% below loadboard)
+
+Premium carriers get a higher `open_pct` because they expect better rates upfront.
+
+**Ceiling % (`ceiling_pct`)**
+
+The absolute maximum rate the engine will accept before walking away. Also computed as a percentage of loadboard:
+
+```
+ceiling_rate = loadboard_rate × ceiling_pct
+```
+
+If the carrier's ask exceeds the ceiling after all negotiation rounds, the engine rejects the deal. Values above 1.0 mean the engine is willing to pay above the loadboard rate for that tier. For example, with a loadboard rate of $2,000:
+- `ceiling_pct = 1.00` → ceiling = $2,000 (never exceed loadboard)
+- `ceiling_pct = 1.07` → ceiling = $2,140 (up to 7% above loadboard for premium carriers)
+
+The gap between `open_pct` and `ceiling_pct` defines the total negotiation range.
+
+**Rate Override (`offered_rate_override`)**
+
+When set, this replaces the percentage-based calculation with a hard dollar amount. The platform uses this value directly as the offered rate instead of computing `loadboard_rate × open_pct`. Useful for:
+- Fixed-rate lanes where pricing shouldn't float with the loadboard
+- Temporary overrides during market disruptions
+- Testing a specific price point without changing the percentage policy
+
+When `null` (the default), the percentage-based formula is used.
 
 ### Negotiation decision ladder
 

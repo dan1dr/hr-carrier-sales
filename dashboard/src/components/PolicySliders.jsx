@@ -8,42 +8,19 @@ const TIERS = [
   { value: 'premium', label: 'Premium' },
 ]
 
-const SENSITIVITY_OPTIONS = ['low', 'medium', 'high']
-
-function SliderInput({ label, value, onChange, min, max, step, format }) {
-  const displayValue = format ? format(value) : value
-
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <label className="text-[13px] text-text-secondary">{label}</label>
-        <span className="text-[13px] font-semibold text-text-primary tabular-nums">{displayValue}</span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full h-1 rounded-full appearance-none cursor-pointer
-          bg-surface-3
-          [&::-webkit-slider-thumb]:appearance-none
-          [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5
-          [&::-webkit-slider-thumb]:rounded-full
-          [&::-webkit-slider-thumb]:bg-accent
-          [&::-webkit-slider-thumb]:cursor-pointer
-          [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:h-3.5
-          [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent
-          [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
-      />
-      <div className="flex justify-between text-[11px] text-text-muted">
-        <span>{format ? format(min) : min}</span>
-        <span>{format ? format(max) : max}</span>
-      </div>
-    </div>
-  )
-}
+const THUMB = `w-full h-1 rounded-full appearance-none cursor-pointer bg-surface-3
+  [&::-webkit-slider-thumb]:appearance-none
+  [&::-webkit-slider-thumb]:w-[18px] [&::-webkit-slider-thumb]:h-[18px]
+  [&::-webkit-slider-thumb]:rounded-full
+  [&::-webkit-slider-thumb]:bg-text-primary
+  [&::-webkit-slider-thumb]:border-[2.5px] [&::-webkit-slider-thumb]:border-surface-0
+  [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_var(--color-border),0_1px_3px_rgba(0,0,0,0.08)]
+  [&::-webkit-slider-thumb]:cursor-pointer
+  [&::-moz-range-thumb]:w-[18px] [&::-moz-range-thumb]:h-[18px]
+  [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-text-primary
+  [&::-moz-range-thumb]:border-[2.5px] [&::-moz-range-thumb]:border-surface-0
+  [&::-moz-range-thumb]:shadow-[0_0_0_1px_var(--color-border),0_1px_3px_rgba(0,0,0,0.08)]
+  [&::-moz-range-thumb]:cursor-pointer`
 
 export default function PolicySliders({ configs, onSaved }) {
   const [activeTier, setActiveTier] = useState('new')
@@ -80,7 +57,6 @@ export default function PolicySliders({ configs, onSaved }) {
 
   return (
     <div className="border border-border rounded-xl bg-surface-0 shadow-[var(--shadow-card)]">
-      {/* Tier Tabs */}
       <div className="flex items-center gap-0 border-b border-border">
         {TIERS.map((tier) => (
           <button
@@ -97,108 +73,109 @@ export default function PolicySliders({ configs, onSaved }) {
         ))}
       </div>
 
-      <div className="p-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <SliderInput
-            label="Opening Offer %"
-            value={form.open_pct}
-            onChange={(v) => update('open_pct', v)}
+      <div className="p-6 space-y-8">
+        {/* Opening Offer */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-medium text-text-primary">Opening Offer</span>
+            <span className="text-sm font-semibold text-text-primary tabular-nums">{pctFmt(form.open_pct)}</span>
+          </div>
+          <input
+            type="range"
             min={0.75}
-            max={0.99}
+            max={1.00}
             step={0.01}
-            format={pctFmt}
+            value={form.open_pct}
+            onChange={(e) => update('open_pct', parseFloat(e.target.value))}
+            className={THUMB}
           />
+          <div className="flex justify-between text-[10.5px] text-text-muted">
+            <span>Aggressive · 75%</span>
+            <span>100% · Conservative</span>
+          </div>
+          <p className="text-[11.5px] leading-relaxed text-text-muted">
+            First rate quoted to the carrier as a % of loadboard. Lower values leave more
+            margin to negotiate upward.
+          </p>
+        </div>
 
-          <SliderInput
-            label="Ceiling %"
-            value={form.ceiling_pct}
-            onChange={(v) => update('ceiling_pct', v)}
+        <div className="border-t border-border" />
+
+        {/* Ceiling */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-medium text-text-primary">Ceiling</span>
+            <span className="text-sm font-semibold text-text-primary tabular-nums">{pctFmt(form.ceiling_pct)}</span>
+          </div>
+          <input
+            type="range"
             min={0.90}
             max={1.15}
             step={0.01}
-            format={pctFmt}
+            value={form.ceiling_pct}
+            onChange={(e) => update('ceiling_pct', parseFloat(e.target.value))}
+            className={THUMB}
           />
-
-          <SliderInput
-            label="Urgency Boost %"
-            value={form.urgency_boost_pct}
-            onChange={(v) => update('urgency_boost_pct', v)}
-            min={0.00}
-            max={0.15}
-            step={0.01}
-            format={pctFmt}
-          />
-
-          <div className="space-y-1.5">
-            <label className="text-[13px] text-text-secondary">Max Rounds</label>
-            <div className="flex gap-2">
-              {[1, 2, 3].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => update('max_rounds', n)}
-                  className={`flex-1 py-2 rounded-md text-[13px] font-medium transition-colors cursor-pointer border
-                    ${form.max_rounds === n
-                      ? 'bg-text-primary text-white border-text-primary'
-                      : 'bg-surface-0 border-border text-text-muted hover:text-text-secondary hover:border-border-hover'
-                    }`}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
+          <div className="flex justify-between text-[10.5px] text-text-muted">
+            <span>Strict · 90%</span>
+            <span>115% · Flexible</span>
           </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[13px] text-text-secondary">Escalation Sensitivity</label>
-            <div className="flex gap-2">
-              {SENSITIVITY_OPTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => update('escalation_sensitivity', s)}
-                  className={`flex-1 py-2 rounded-md text-[13px] font-medium capitalize transition-colors cursor-pointer border
-                    ${form.escalation_sensitivity === s
-                      ? 'bg-text-primary text-white border-text-primary'
-                      : 'bg-surface-0 border-border text-text-muted hover:text-text-secondary hover:border-border-hover'
-                    }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[13px] text-text-secondary">Rate Override</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                value={form.offered_rate_override ?? ''}
-                onChange={(e) => update('offered_rate_override', e.target.value === '' ? null : parseFloat(e.target.value))}
-                placeholder="Auto (use %)"
-                className="flex-1 bg-surface-0 border border-border rounded-md px-3 py-2 text-[13px] text-text-primary
-                  placeholder-text-muted focus:outline-none focus:border-text-primary transition-colors"
-              />
-              {form.offered_rate_override != null && (
-                <button
-                  onClick={() => update('offered_rate_override', null)}
-                  className="text-[11px] text-text-muted hover:text-red-text transition-colors cursor-pointer"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          </div>
+          <p className="text-[11.5px] leading-relaxed text-text-muted">
+            Max rate before walking away. Above 100% allows paying over loadboard to
+            secure capacity.
+          </p>
         </div>
 
-        <div className="mt-5 flex justify-end">
+        <div className="border-t border-border" />
+
+        {/* Rate Override */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className={`text-[13px] font-medium transition-colors ${form.offered_rate_override != null ? 'text-text-primary' : 'text-text-muted'}`}>
+              Rate Override
+            </span>
+            <button
+              type="button"
+              onClick={() => update('offered_rate_override', form.offered_rate_override != null ? null : 1500)}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200
+                ${form.offered_rate_override != null ? 'bg-text-primary' : 'bg-surface-3'}`}
+            >
+              <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-1 ring-black/5
+                transform transition-transform duration-200 mt-0.5
+                ${form.offered_rate_override != null ? 'translate-x-[18px]' : 'translate-x-0.5'}`}
+              />
+            </button>
+          </div>
+          <div className={`relative transition-opacity duration-200 ${form.offered_rate_override != null ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[13px] text-text-muted select-none">$</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={form.offered_rate_override ?? 1500}
+              onChange={(e) => {
+                const v = e.target.value.replace(/[^0-9.]/g, '')
+                update('offered_rate_override', v === '' ? null : parseFloat(v))
+              }}
+              className="w-full bg-surface-0 border border-border rounded-lg pl-7 pr-3.5 py-2.5 text-[13px] text-text-primary
+                focus:outline-none focus:border-text-primary focus:ring-1 focus:ring-text-primary/10 transition-all
+                [appearance:textfield]"
+            />
+          </div>
+          <p className={`text-[11.5px] leading-relaxed transition-colors ${form.offered_rate_override != null ? 'text-text-muted' : 'text-text-muted/50'}`}>
+            Hard dollar amount that bypasses the % formula. Useful for fixed-rate lanes
+            or temporary market overrides.
+          </p>
+        </div>
+
+        <div className="pt-2 flex justify-end">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 rounded-md text-[13px] font-medium transition-colors cursor-pointer
+            className="px-5 py-2 rounded-lg text-[13px] font-medium transition-colors cursor-pointer
               bg-text-primary text-white hover:opacity-90
               disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? 'Saving...' : 'Save changes'}
           </button>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { useMetrics } from './hooks/useMetrics'
 import { useConfig } from './hooks/useConfig'
@@ -7,56 +7,61 @@ import Footer from './components/Footer'
 import OverviewPage from './components/OverviewPage'
 import CallsPage from './components/CallsPage'
 import PolicyPage from './components/PolicyPage'
-import PlaceholderPage from './components/PlaceholderPage'
+import AnalyticsPage from './components/AnalyticsPage'
 
 export default function App() {
   const [page, setPage] = useState('overview')
   const { metrics, loading, error, refetch } = useMetrics()
   const { configs, refetch: refetchConfig } = useConfig()
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') === 'dark'
+    }
+    return false
+  })
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('sidebar') === 'collapsed'
+    }
+    return false
+  })
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode)
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
+
+  useEffect(() => {
+    localStorage.setItem('sidebar', sidebarCollapsed ? 'collapsed' : 'expanded')
+  }, [sidebarCollapsed])
 
   return (
     <div className="flex min-h-screen bg-page">
       <Toaster position="bottom-right" />
-      <Sidebar activePage={page} onNavigate={setPage} />
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+      <Sidebar
+        activePage={page}
+        onNavigate={setPage}
+        darkMode={darkMode}
+        onToggleDark={() => setDarkMode((d) => !d)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
+      />
+      <div className="flex-1 min-w-0 overflow-y-auto h-screen">
         <Header
           page={page}
           loading={loading}
           error={error}
           onRefresh={() => { refetch(); refetchConfig() }}
         />
-        <main className="flex-1 overflow-y-auto">
+        <main className="min-h-[calc(100vh-3.25rem)]">
           <div className="max-w-6xl mx-auto px-8 py-6">
             {page === 'overview' && <OverviewPage metrics={metrics} />}
             {page === 'calls' && <CallsPage metrics={metrics} />}
             {page === 'policy' && <PolicyPage configs={configs} onSaved={refetchConfig} />}
-            {page === 'analytics' && (
-              <PlaceholderPage
-                title="Analytics"
-                subtitle="Time-series views, cohort trends, and CSV exports will appear here. Connect your data warehouse or use the metrics API for custom reporting."
-              />
-            )}
-            {page === 'integrations' && (
-              <PlaceholderPage
-                title="Integrations"
-                subtitle="Connect TMS, load boards, and CRM webhooks. Configure API keys and event subscriptions when your brokerage is ready to go live."
-              />
-            )}
-            {page === 'reports' && (
-              <PlaceholderPage
-                title="Reports & exports"
-                subtitle="Scheduled PDF summaries and spreadsheet exports for leadership — coming in a future release."
-              />
-            )}
-            {page === 'settings' && (
-              <PlaceholderPage
-                title="Workspace settings"
-                subtitle="User roles, notification preferences, and environment URLs. Enterprise SSO can be enabled when you move beyond API key access."
-              />
-            )}
+            {page === 'analytics' && <AnalyticsPage />}
           </div>
         </main>
-        <Footer onNavigate={setPage} />
+        <Footer />
       </div>
     </div>
   )
@@ -68,13 +73,11 @@ function Header({ page, loading, error, onRefresh }) {
     calls: 'Calls',
     policy: 'Negotiation policy',
     analytics: 'Analytics',
-    integrations: 'Integrations',
-    reports: 'Reports & exports',
-    settings: 'Settings',
+    docs: 'Documentation',
   }
 
   return (
-    <header className="h-13 border-b border-border bg-surface-0 px-8 flex items-center justify-between shrink-0">
+    <header className="h-13 border-b border-border bg-surface-0 px-8 flex items-center justify-between shrink-0 sticky top-0 z-10">
       <div className="flex items-center gap-3">
         <h1 className="text-[15px] font-semibold text-text-primary tracking-tight">
           {titles[page] || 'Operations'}

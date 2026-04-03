@@ -13,31 +13,17 @@ const NAV_SECTIONS = [
     label: 'Configure',
     items: [
       { id: 'policy', label: 'Negotiation policy', icon: 'sliders' },
-      { id: 'integrations', label: 'Integrations', icon: 'plug' },
     ],
   },
   {
     label: 'Resources',
     items: [
-      { id: 'reports', label: 'Reports & exports', icon: 'file' },
       {
         id: 'docs',
         label: 'Documentation',
         icon: 'book',
         external: 'https://www.happyrobot.ai/',
       },
-      {
-        id: 'careers',
-        label: 'HappyRobot careers',
-        icon: 'briefcase',
-        external: 'https://www.happyrobot.ai/careers',
-      },
-    ],
-  },
-  {
-    label: 'Account',
-    items: [
-      { id: 'settings', label: 'Settings', icon: 'gear' },
     ],
   },
 ]
@@ -69,31 +55,9 @@ const icons = {
       <circle cx="7" cy="12" r="1.5" fill="currentColor"/>
     </svg>
   ),
-  plug: (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-      <path d="M6 2v4M10 2v4M4 6h8v2a4 4 0 01-4 4v3M8 12v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  file: (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-      <path d="M4 2h6l3 3v9H4V2z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
-      <path d="M10 2v4h3" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
-    </svg>
-  ),
   book: (
     <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
       <path d="M3 3h10v11H3a1 1 0 00-1 1V4a1 1 0 011-1zM13 3h0a1 1 0 011 1v11a1 1 0 01-1-1V3z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
-    </svg>
-  ),
-  briefcase: (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-      <path d="M3 6h10v8a1 1 0 01-1 1H4a1 1 0 01-1-1V6zM5 6V4a2 2 0 012-2h2a2 2 0 012 2v2" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
-    </svg>
-  ),
-  gear: (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-      <path d="M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" stroke="currentColor" strokeWidth="1.3"/>
-      <path d="M8 1v2M8 13v2M15 8h-2M3 8H1M13.2 2.8l-1.4 1.4M4.2 11.8l-1.4 1.4M13.2 13.2l-1.4-1.4M4.2 4.2L2.8 2.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
     </svg>
   ),
 }
@@ -104,7 +68,7 @@ function NavButton({ item, active, onNavigate }) {
     : 'text-text-secondary hover:bg-surface-2/80 hover:text-text-primary'
 
   const icon = (
-    <span className={active ? 'text-accent' : 'text-text-muted'}>
+    <span className={active ? 'text-text-primary' : 'text-text-muted'}>
       {icons[item.icon]}
     </span>
   )
@@ -136,26 +100,75 @@ function NavButton({ item, active, onNavigate }) {
   )
 }
 
-export default function Sidebar({ activePage, onNavigate }) {
+export default function Sidebar({ activePage, onNavigate, darkMode, onToggleDark, collapsed, onToggleCollapse }) {
+  if (collapsed) {
+    return (
+      <aside className="w-14 h-screen sticky top-0 border-r border-border bg-surface-0 flex flex-col shrink-0 items-center transition-all duration-200">
+        <div className="h-13 border-b border-border w-full flex items-center justify-center">
+          <img src="/logo.png" alt="AL" className="w-7 h-7 rounded-md object-cover" />
+        </div>
+
+        <nav className="flex-1 py-3 flex flex-col items-center gap-1 overflow-y-auto">
+          {NAV_SECTIONS.flatMap((s) => s.items).filter((item) => !item.external).map((item) => {
+            const active = activePage === item.id
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onNavigate(item.id)}
+                title={item.label}
+                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
+                  active
+                    ? 'bg-surface-2 text-text-primary shadow-[var(--shadow-card)]'
+                    : 'text-text-muted hover:bg-surface-2/80 hover:text-text-primary'
+                }`}
+              >
+                {icons[item.icon]}
+              </button>
+            )
+          })}
+        </nav>
+
+        <div className="py-3 flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={onToggleDark}
+            title={darkMode ? 'Light mode' : 'Dark mode'}
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-text-muted hover:bg-surface-2 hover:text-text-primary transition-colors cursor-pointer"
+          >
+            {darkMode ? (
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M14 9.6A6.5 6.5 0 016.4 2 6 6 0 1014 9.6z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            title="Expand sidebar"
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-text-muted hover:bg-surface-2 hover:text-text-primary transition-colors cursor-pointer"
+          >
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </aside>
+    )
+  }
+
   return (
-    <aside className="w-56 h-screen border-r border-border bg-surface-0 flex flex-col shrink-0">
-      <div className="px-3 pt-4 pb-3 border-b border-border">
-        <div className="flex items-start gap-3 px-1">
-          <img
-            src="/acme-brand.png"
-            alt=""
-            className="w-10 h-10 rounded-lg object-cover ring-1 ring-border shrink-0"
-          />
-          <div className="min-w-0 pt-0.5">
+    <aside className="w-56 h-screen sticky top-0 border-r border-border bg-surface-0 flex flex-col shrink-0 transition-all duration-200">
+      <div className="h-13 px-3 border-b border-border flex items-center">
+        <div className="flex items-center gap-2.5 px-1">
+          <img src="/logo.png" alt="AL" className="w-7 h-7 rounded-md object-cover shrink-0" />
+          <div className="min-w-0">
             <div className="text-[14px] font-semibold text-text-primary leading-tight tracking-tight">
               ACME Logistics
             </div>
-            <div className="text-[11px] text-text-muted mt-0.5">Client workspace</div>
+            <div className="text-[11px] text-text-muted mt-0.5">Operations</div>
           </div>
         </div>
-        <p className="text-[10px] text-text-muted mt-3 px-1 leading-snug">
-          Signed in as <span className="text-text-secondary font-medium">broker operations</span>
-        </p>
       </div>
 
       <nav className="flex-1 py-3 px-2 space-y-4 overflow-y-auto">
@@ -181,8 +194,31 @@ export default function Sidebar({ activePage, onNavigate }) {
         ))}
       </nav>
 
-      <div className="px-3 py-3 border-t border-border">
-        <p className="text-[10px] text-text-muted">Metrics refresh every 30s</p>
+      <div className="px-3 py-3 space-y-2">
+        <button
+          type="button"
+          onClick={onToggleDark}
+          className="w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[13px] font-medium text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors cursor-pointer"
+        >
+          <span className="text-text-muted">
+            {darkMode ? (
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M14 9.6A6.5 6.5 0 016.4 2 6 6 0 1014 9.6z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
+            )}
+          </span>
+          {darkMode ? 'Light mode' : 'Dark mode'}
+        </button>
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          className="w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[13px] font-medium text-text-muted hover:bg-surface-2 hover:text-text-secondary transition-colors cursor-pointer"
+        >
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+            <path d="M10 3l-5 5 5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Collapse
+        </button>
       </div>
     </aside>
   )
