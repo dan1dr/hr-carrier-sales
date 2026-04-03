@@ -1,0 +1,17 @@
+[
+  {
+    "tier": "new",
+    "open_pct": 0.85,
+    "ceiling_pct": 1.00
+  },
+  {
+    "tier": "verified",
+    "open_pct": 0.90,
+    "ceiling_pct": 1.03
+  },
+  {
+    "tier": "premium",
+    "open_pct": 0.93,
+    "ceiling_pct": 1.07
+  }
+]

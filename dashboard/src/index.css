@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+/* Refined SaaS palette — soft surfaces, cohesive accents (HappyRobot-adjacent) */
+@theme {
+  --color-page: #fafaf9;
+  --color-surface-0: #ffffff;
+  --color-surface-1: #ffffff;
+  --color-surface-2: #f5f5f4;
+  --color-surface-3: #e7e5e4;
+  --color-border: #e7e5e4;
+  --color-border-hover: #d6d3d1;
+
+  --color-accent: #0d9488;
+  --color-accent-muted: #ccfbf1;
+
+  --color-green-bg: #ecfdf5;
+  --color-green-text: #047857;
+  --color-red-bg: #fff1f2;
+  --color-red-text: #be123c;
+  --color-amber-bg: #fffbeb;
+  --color-amber-text: #b45309;
+  --color-blue-bg: #eff6ff;
+  --color-blue-text: #1d4ed8;
+  --color-purple-bg: #f5f3ff;
+  --color-purple-text: #6d28d9;
+  --color-gray-bg: #f5f5f4;
+  --color-gray-text: #57534e;
+
+  --color-text-primary: #1c1917;
+  --color-text-secondary: #57534e;
+  --color-text-muted: #a8a29e;
+
+  --shadow-card: 0 1px 2px rgba(28, 25, 23, 0.04);
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-page);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d6d3d1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a29e;
+}
+
+/* ─── Dark mode ──────────────────────────────────────── */
+.dark {
+  --color-page: #0c0a09;
+  --color-surface-0: #1c1917;
+  --color-surface-1: #1c1917;
+  --color-surface-2: #292524;
+  --color-surface-3: #44403c;
+  --color-border: #292524;
+  --color-border-hover: #44403c;
+
+  --color-accent: #2dd4bf;
+  --color-accent-muted: #134e4a;
+
+  --color-green-bg: #064e3b;
+  --color-green-text: #6ee7b7;
+  --color-red-bg: #4c0519;
+  --color-red-text: #fda4af;
+  --color-amber-bg: #451a03;
+  --color-amber-text: #fcd34d;
+  --color-blue-bg: #1e3a5f;
+  --color-blue-text: #93c5fd;
+  --color-purple-bg: #2e1065;
+  --color-purple-text: #c4b5fd;
+  --color-gray-bg: #292524;
+  --color-gray-text: #a8a29e;
+
+  --color-text-primary: #fafaf9;
+  --color-text-secondary: #d6d3d1;
+  --color-text-muted: #78716c;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #44403c;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #57534e;
+}
