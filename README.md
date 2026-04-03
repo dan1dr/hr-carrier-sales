@@ -230,6 +230,12 @@ carrier-sales-events/
 
 **Configuration:** Set `AZURE_STORAGE_CONNECTION_STRING` in `.env`. If empty, blob uploads are silently skipped — calls are still logged to the local database. The upload is fire-and-forget: a failed upload never blocks the API response.
 
+### Call log payload (HappyRobot post-call event)
+
+The API accepts alternate field names from the platform: `origin` → `requested_origin`, `destination` → `requested_destination`, `duration` → `call_duration_seconds`. Optional metadata: `timedate`, `p90_latency`, `miles`, `classification` (used as `outcome` when `outcome` is missing or placeholder `"0"`). Empty strings for numeric fields are coerced to null / zero.
+
+If `margin_retained_pct` is omitted but `loadboard_rate` and `final_rate` are present, margin is computed as `(loadboard_rate - final_rate) / loadboard_rate × 100`.
+
 ## Auth
 
 All endpoints require `x-api-key` header. Set `API_KEY` in `.env`. Default for dev: `dev-api-key`.

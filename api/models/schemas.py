@@ -123,7 +123,8 @@ class LogCallRequest(BaseModel):
     final_rate: float | None = None
     negotiation_rounds: int = 0
     margin_retained_pct: float | None = None
-    outcome: str  # booked | no_match | declined_by_carrier | failed_verification | escalated | dropped
+    outcome: str = "unknown"
+    classification: str | None = None
     sentiment: str | None = None
     sentiment_score: int | None = None
     sentiment_reasoning: str | None = None
@@ -133,24 +134,40 @@ class LogCallRequest(BaseModel):
     handoff_required: bool = False
     call_duration_seconds: int | None = None
     summary: str | None = None
+    timedate: str | None = None
+    p90_latency: float | None = None
+    miles: float | None = None
 
     @model_validator(mode="before")
     @classmethod
-    def coerce_empty_strings(cls, values):
+    def normalize_aliases_and_coerce(cls, values):
         if not isinstance(values, dict):
             return values
+        v = dict(values)
+        if v.get("origin") is not None and v.get("requested_origin") is None:
+            v["requested_origin"] = v["origin"]
+        if v.get("destination") is not None and v.get("requested_destination") is None:
+            v["requested_destination"] = v["destination"]
+        if "duration" in v and v.get("call_duration_seconds") is None:
+            v["call_duration_seconds"] = v["duration"]
+        o = v.get("outcome")
+        c = v.get("classification")
+        if c and (o is None or _empty_to_none(o) is None or str(o).strip() in ("0",)):
+            v["outcome"] = c
+        elif o is None or _empty_to_none(o) is None or str(o).strip() in ("0",):
+            v["outcome"] = "unknown"
         nullable_numeric = (
             "loadboard_rate", "initial_carrier_ask", "final_rate",
             "offered_rate", "carrier_last_price", "margin_retained_pct",
-            "sentiment_score", "call_duration_seconds",
+            "sentiment_score", "call_duration_seconds", "p90_latency", "miles",
         )
         for field in nullable_numeric:
-            v = values.get(field)
-            if isinstance(v, str) and not v.strip():
-                values[field] = None
-        if isinstance(values.get("negotiation_rounds"), str) and not values["negotiation_rounds"].strip():
-            values["negotiation_rounds"] = 0
-        return values
+            fv = v.get(field)
+            if isinstance(fv, str) and not fv.strip():
+                v[field] = None
+        if isinstance(v.get("negotiation_rounds"), str) and not v["negotiation_rounds"].strip():
+            v["negotiation_rounds"] = 0
+        return v
 
     def resolve_sentiment(self) -> str | None:
         """Return a label from explicit sentiment or mapped from sentiment_score."""

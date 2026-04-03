@@ -14,8 +14,18 @@ from api.models.schemas import LogCallRequest, LogCallResponse
 from api.services.blob_store import upload_call_event
 
 
+def _compute_margin_pct(loadboard: float | None, final: float | None) -> float | None:
+    if loadboard is None or final is None or loadboard <= 0:
+        return None
+    return round((loadboard - final) / loadboard * 100, 2)
+
+
 async def log_call(db: AsyncSession, req: LogCallRequest) -> LogCallResponse:
     call_id = req.call_id or str(uuid.uuid4())
+
+    margin = req.margin_retained_pct
+    if margin is None:
+        margin = _compute_margin_pct(req.loadboard_rate, req.final_rate)
 
     call = CallRow(
         call_id=call_id,
@@ -29,7 +39,7 @@ async def log_call(db: AsyncSession, req: LogCallRequest) -> LogCallResponse:
         initial_carrier_ask=req.initial_carrier_ask or req.carrier_last_price,
         final_rate=req.final_rate,
         negotiation_rounds=req.negotiation_rounds,
-        margin_retained_pct=req.margin_retained_pct,
+        margin_retained_pct=margin,
         outcome=req.outcome,
         sentiment=req.resolve_sentiment(),
         handoff_required=req.handoff_required,
