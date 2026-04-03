@@ -3,9 +3,11 @@ import { Toaster } from 'react-hot-toast'
 import { useMetrics } from './hooks/useMetrics'
 import { useConfig } from './hooks/useConfig'
 import Sidebar from './components/Sidebar'
+import Footer from './components/Footer'
 import OverviewPage from './components/OverviewPage'
 import CallsPage from './components/CallsPage'
 import PolicyPage from './components/PolicyPage'
+import PlaceholderPage from './components/PlaceholderPage'
 
 export default function App() {
   const [page, setPage] = useState('overview')
@@ -13,10 +15,10 @@ export default function App() {
   const { configs, refetch: refetchConfig } = useConfig()
 
   return (
-    <div className="flex h-screen bg-surface-0">
+    <div className="flex min-h-screen bg-page">
       <Toaster position="bottom-right" />
       <Sidebar activePage={page} onNavigate={setPage} />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
         <Header
           page={page}
           loading={loading}
@@ -28,8 +30,33 @@ export default function App() {
             {page === 'overview' && <OverviewPage metrics={metrics} />}
             {page === 'calls' && <CallsPage metrics={metrics} />}
             {page === 'policy' && <PolicyPage configs={configs} onSaved={refetchConfig} />}
+            {page === 'analytics' && (
+              <PlaceholderPage
+                title="Analytics"
+                subtitle="Time-series views, cohort trends, and CSV exports will appear here. Connect your data warehouse or use the metrics API for custom reporting."
+              />
+            )}
+            {page === 'integrations' && (
+              <PlaceholderPage
+                title="Integrations"
+                subtitle="Connect TMS, load boards, and CRM webhooks. Configure API keys and event subscriptions when your brokerage is ready to go live."
+              />
+            )}
+            {page === 'reports' && (
+              <PlaceholderPage
+                title="Reports & exports"
+                subtitle="Scheduled PDF summaries and spreadsheet exports for leadership — coming in a future release."
+              />
+            )}
+            {page === 'settings' && (
+              <PlaceholderPage
+                title="Workspace settings"
+                subtitle="User roles, notification preferences, and environment URLs. Enterprise SSO can be enabled when you move beyond API key access."
+              />
+            )}
           </div>
         </main>
+        <Footer onNavigate={setPage} />
       </div>
     </div>
   )
@@ -39,14 +66,18 @@ function Header({ page, loading, error, onRefresh }) {
   const titles = {
     overview: 'Overview',
     calls: 'Calls',
-    policy: 'Policy',
+    policy: 'Negotiation policy',
+    analytics: 'Analytics',
+    integrations: 'Integrations',
+    reports: 'Reports & exports',
+    settings: 'Settings',
   }
 
   return (
     <header className="h-13 border-b border-border bg-surface-0 px-8 flex items-center justify-between shrink-0">
       <div className="flex items-center gap-3">
-        <h1 className="text-[15px] font-semibold text-text-primary">
-          {titles[page]}
+        <h1 className="text-[15px] font-semibold text-text-primary tracking-tight">
+          {titles[page] || 'Operations'}
         </h1>
       </div>
       <div className="flex items-center gap-3">
@@ -58,6 +89,7 @@ function Header({ page, loading, error, onRefresh }) {
           <StatusPill color="green" label="Live" />
         )}
         <button
+          type="button"
           onClick={onRefresh}
           className="p-1.5 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-2 transition-colors cursor-pointer"
           title="Refresh"

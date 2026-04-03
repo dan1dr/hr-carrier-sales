@@ -18,7 +18,7 @@ export default function PerformanceCards({ metrics }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       {cards.map((card) => (
-        <div key={card.label} className="border border-border rounded-lg px-5 py-4">
+        <div key={card.label} className="border border-border rounded-xl bg-surface-0 px-5 py-4 shadow-[var(--shadow-card)]">
           <div className="text-2xl font-semibold text-text-primary tracking-tight">
             {card.value}
           </div>

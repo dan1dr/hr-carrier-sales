@@ -19,14 +19,14 @@ export default function MetricCards({ metrics }) {
           : null
 
         return (
-          <div key={card.key} className="border border-border rounded-lg px-5 py-4">
+          <div key={card.key} className="border border-border rounded-xl bg-surface-0 px-5 py-4 shadow-[var(--shadow-card)]">
             <div className="text-2xl font-semibold text-text-primary tracking-tight">
               {value ?? '—'}
             </div>
             <div className="text-[13px] text-text-muted mt-0.5">{card.label}</div>
             {convPct && (
               <div className="mt-1.5">
-                <span className="inline-block px-1.5 py-0.5 rounded text-[11px] font-medium bg-green-bg text-green-text">
+                <span className="inline-block px-1.5 py-0.5 rounded-md text-[11px] font-medium bg-green-bg text-green-text">
                   {convPct}%
                 </span>
               </div>

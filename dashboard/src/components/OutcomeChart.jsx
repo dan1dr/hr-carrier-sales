@@ -5,13 +5,13 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 ChartJS.register(ArcElement, Tooltip, Legend)
 
 const outcomeConfig = {
-  booked:              { label: 'Booked',              color: '#1a7f37' },
-  no_match:            { label: 'No Match',            color: '#8b949e' },
-  declined_by_carrier: { label: 'Declined',            color: '#9a6700' },
-  failed_verification: { label: 'Failed Verification', color: '#cf222e' },
-  escalated:           { label: 'Escalated',           color: '#6639ba' },
-  dropped:             { label: 'Dropped',             color: '#656d76' },
-  unknown:             { label: 'Unknown',             color: '#b0b0aa' },
+  booked:              { label: 'Booked',              color: '#059669' },
+  no_match:            { label: 'No Match',            color: '#a8a29e' },
+  declined_by_carrier: { label: 'Declined',            color: '#d97706' },
+  failed_verification: { label: 'Failed Verification', color: '#e11d48' },
+  escalated:           { label: 'Escalated',           color: '#7c3aed' },
+  dropped:             { label: 'Dropped',             color: '#78716c' },
+  unknown:             { label: 'Unknown',             color: '#d6d3d1' },
 }
 
 export default function OutcomeChart({ breakdown }) {
@@ -35,7 +35,7 @@ export default function OutcomeChart({ breakdown }) {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    cutout: '78%',
+    cutout: '82%',
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -54,8 +54,9 @@ export default function OutcomeChart({ breakdown }) {
   }
 
   return (
-    <div className="border border-border rounded-lg p-5">
-      <h3 className="text-[13px] font-medium text-text-secondary mb-4">Outcome Breakdown</h3>
+    <div className="border border-border rounded-xl bg-surface-0 p-5 shadow-[var(--shadow-card)]">
+      <h3 className="text-[13px] font-semibold text-text-primary mb-1">Outcome Breakdown</h3>
+      <p className="text-[11px] text-text-muted mb-4">Share of calls by result</p>
 
       <div className="flex items-center gap-5">
         <div className="relative w-40 h-40 shrink-0">

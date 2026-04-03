@@ -8,7 +8,8 @@ const stages = [
   { key: 'booked', label: 'Booked' },
 ]
 
-const COLORS = ['#6639ba', '#0969da', '#9a6700', '#6639ba', '#1a7f37']
+/* Cohesive indigo → violet → amber → teal → emerald (muted fills) */
+const COLORS = ['#6366f1', '#8b5cf6', '#f59e0b', '#14b8a6', '#10b981']
 
 export default function ConversionFunnel({ metrics }) {
   if (!metrics) return null
@@ -16,8 +17,9 @@ export default function ConversionFunnel({ metrics }) {
   const maxVal = metrics.total_calls || 1
 
   return (
-    <div className="border border-border rounded-lg p-5">
-      <h3 className="text-[13px] font-medium text-text-secondary mb-4">Conversion Funnel</h3>
+    <div className="border border-border rounded-xl bg-surface-0 p-5 shadow-[var(--shadow-card)]">
+      <h3 className="text-[13px] font-semibold text-text-primary mb-1">Conversion Funnel</h3>
+      <p className="text-[11px] text-text-muted mb-4">Inbound → booked pipeline</p>
 
       <div className="space-y-2.5">
         {stages.map((stage, i) => {
@@ -46,12 +48,12 @@ export default function ConversionFunnel({ metrics }) {
                     {stage.label}
                   </div>
                 </div>
-                <div className="flex-1 relative h-7 bg-surface-2 rounded-sm overflow-hidden">
+                <div className="flex-1 relative h-7 bg-surface-2 rounded-md overflow-hidden">
                   <div
-                    className="absolute inset-y-0 left-0 rounded-sm transition-all duration-500 ease-out"
+                    className="absolute inset-y-0 left-0 rounded-md transition-all duration-500 ease-out"
                     style={{
                       width: `${Math.max(Number(pct), 3)}%`,
-                      backgroundColor: COLORS[i] + '15',
+                      backgroundColor: `${COLORS[i]}22`,
                     }}
                   />
                   <div className="absolute inset-0 flex items-center px-3">
