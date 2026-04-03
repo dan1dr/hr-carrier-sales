@@ -22,36 +22,38 @@ Build a **production-minded proof of concept for inbound carrier sales automatio
 
 | Endpoint | Method | Purpose |
 |---|---|---|
-| `/api/v1/carrier/verify` | POST | FMCSA verification via adapter pattern |
+| `/api/v1/carrier/lookup/{mc_number}` | GET | Carrier eligibility and tier lookup by MC number |
 | `/api/v1/loads/search` | POST | Scored load matching with reason codes |
-| `/api/v1/negotiate/evaluate` | POST | Deterministic policy engine |
+| `/api/v1/negotiate/params` | POST | Get pricing params (open_pct, ceiling_pct, override) for a tier |
+| `/api/v1/negotiate/evaluate` | POST | Deterministic policy engine (server-side round tracking) |
 | `/api/v1/calls/log` | POST | Event store + post-call extraction |
+| `/api/v1/calls` | GET | Paginated call list with status/outcome filters |
+| `/api/v1/calls/{call_id}` | GET | Single call detail with event history |
 | `/api/v1/dashboard/metrics` | GET | Aggregated metrics for dashboard |
 | `/api/v1/dashboard/config` | GET/PUT | Negotiation policy sliders per carrier tier |
 | `/health` | GET | Health check |
 
 Security middleware:
 - `x-api-key` header validation on all endpoints
-- HMAC signature verification on HappyRobot webhooks
-- HTTPS via host platform (Railway/Azure)
+- HTTPS via host platform (Railway for API, Vercel for dashboard — both use Let's Encrypt)
 - CORS restricted to dashboard origin
 
-### Layer 3: Azure data layer
+### Layer 3: Data layer
 
-| Service | Purpose | Why Azure |
-|---|---|---|
-| **Azure Database for PostgreSQL** (Flexible Server) | Loads, calls, events, offers, carrier cache, negotiation configs | Managed, scalable, RBAC-native |
-| **Azure Blob Storage** | Call event logs (JSON), rep handoff briefs (PDF/JSON), archived transcripts | Cheap, immutable audit trail |
-| **Azure Entra ID** | RBAC for dashboard access | Enterprise-grade auth, shows security maturity |
+| Service | Purpose |
+|---|---|
+| **PostgreSQL** (Railway plugin) | Loads, carriers, calls, events, negotiation configs and sessions |
+| **Azure Blob Storage** (optional) | Call event logs (JSON) — immutable audit trail |
 
-This Azure integration is practical, not decorative: PostgreSQL gives us managed migrations and proper indexing. Blob Storage gives us an immutable audit log of every negotiation event. Entra ID means the dashboard isn't just protected by an API key — it has real identity-based access control with roles (admin vs viewer).
+PostgreSQL gives us managed backups and proper indexing. Azure Blob Storage provides an immutable audit log of every call event. If `AZURE_STORAGE_CONNECTION_STRING` is not set, blob uploads are silently skipped and calls are still logged to the database.
 
-### Layer 4: Operations dashboard (React + Chart.js)
+### Layer 4: Operations dashboard (React + Vite + Chart.js + Tailwind)
 
-- Served from same deployment or separate static host
-- Authenticated via Azure Entra ID (MSAL.js)
+- Deployed on Vercel (auto-deploys from `dev` branch)
+- Authenticated via `x-api-key` header
 - Real-time metrics from `/dashboard/metrics`
-- Per-carrier negotiation policy configuration via sliders
+- Four pages: Overview (KPIs, outcome/sentiment charts, rate comparison), Calls (filterable log with drill-down), Analytics (time-filtered line charts), Negotiation Policy (per-tier sliders with inline docs)
+- Dark/light mode toggle, collapsible sidebar
 
 ---
 
@@ -91,72 +93,71 @@ This is the intellectual centerpiece. The principle: **LLM for conversation, det
 
 ### Inputs
 
+The platform calls `POST /api/v1/negotiate/params` to get per-tier pricing params, then computes three rate targets from the loadboard rate:
+
 | Parameter | Source | Configurable via dashboard? |
 |---|---|---|
 | `loadboard_rate` | Load database | No (from data) |
-| `floor_rate` | Computed: `loadboard_rate * floor_pct` | Yes — `floor_pct` slider |
-| `target_rate` | Computed: `loadboard_rate * target_pct` | Yes — `target_pct` slider |
+| `offered_rate` | Computed: `loadboard_rate × open_pct` (or `offered_rate_override`) | Yes — Opening Offer slider |
+| `followup_rate` | Computed by platform: midpoint between offered and ceiling | No (derived) |
+| `ceiling_rate` | Computed: `loadboard_rate × ceiling_pct` | Yes — Ceiling slider |
 | `carrier_offer` | From conversation | No (from call) |
-| `round_number` | 1, 2, or 3 | Yes — `max_rounds` selector |
-| `urgency_flag` | Based on pickup proximity | Auto-computed |
-| `carrier_sentiment` | From conversation context | No (from call) |
-| `lane_desirability` | From historical demand data | Auto-computed |
-| `carrier_tier` | From verification + history | Tier assignment configurable |
+| `round_number` | Server-side: tracked per (mc_number, load_id) session | No (auto) |
+| `carrier_tier` | From verification + carrier database | Tier assignment in DB |
 
-### Policy rules
+### Policy rules (deterministic decision ladder)
+
+The engine uses a three-zone model based on where the carrier's ask falls:
+
+```
+$0 ── offered ── followup ── ceiling ──── ∞
+      instant     R0 counter   best&final  WALK AWAY
+      accept      (concede)    (last try)
+```
+
+**Round 0:**
+- carrier ≤ offered → accept
+- carrier ≤ followup → accept
+- carrier ≤ ceiling → counter at followup
+- carrier > ceiling → counter at followup
 
 **Round 1:**
-- Accept if `carrier_offer >= target_rate`
-- Counter with `(target_rate + carrier_offer) / 2` if `carrier_offer >= floor_rate`
-- Reject if `carrier_offer < floor_rate`
-- Escalate if carrier is frustrated AND offer is close to floor
+- carrier ≤ followup → accept
+- carrier ≤ ceiling → accept
+- carrier > ceiling → counter at ceiling (best & final)
 
 **Round 2:**
-- Accept if `carrier_offer >= target_rate * 0.97`
-- Counter with `floor_rate + (target_rate - floor_rate) * 0.3` (more aggressive)
-- Reject if below floor
-- Escalate if high-value lane or premium carrier
+- carrier ≤ ceiling → accept
+- carrier > ceiling → reject
 
-**Round 3:**
-- Accept if `carrier_offer >= floor_rate * 1.02`
-- Final offer at `floor_rate * 1.02` (2% above floor)
-- Reject if below floor
-- Escalate if multiple matching loads available
+**No carrier price provided:** lead with followup rate as the opening counter.
 
-**Always:**
-- Never go below `floor_rate`
-- Escalate if constraints are unclear
-- Log every decision with reason code
+Round is tracked server-side per (mc_number, load_id) pair. Each `counter` advances the round (capped at 2). `accept` or `reject` clears the session. 3-minute idle TTL resets round to 0.
 
 ### Outputs
 
 ```json
 {
-  "decision": "accept | counter | reject | escalate",
+  "decision": "accept | counter | reject",
   "counter_rate": 2275,
-  "reason_code": "within_target_band | urgency_premium | final_offer | below_floor",
   "explanation_text": "I can come up to $2,275 — that's a competitive rate for this lane and pickup window.",
-  "floor_hit": false,
-  "round": 2,
-  "margin_retained_pct": 12.5
+  "round_number": 1
 }
 ```
 
 The `explanation_text` is what the agent says verbatim. The LLM wraps it conversationally but never changes the numbers.
 
-### Dashboard negotiation sliders (per carrier tier)
+### Dashboard negotiation controls (per carrier tier)
 
-The dashboard will expose these configurable parameters via sliders:
+The dashboard exposes three configurable parameters, grouped by carrier tier (New, Verified, Premium):
 
-| Slider | Range | Default | What it controls |
-|---|---|---|---|
-| Floor rate % | 75%–95% | 85% | Absolute minimum acceptable (% of loadboard) |
-| Target rate % | 90%–100% | 97% | Ideal acceptance threshold |
-| Max rounds | 1–3 | 3 | Negotiation patience |
-| Urgency boost % | 0%–15% | 5% | How much to raise floor for urgent pickups |
-| Escalation sensitivity | Low/Med/High | Medium | How quickly to hand off to human |
+| Control | Type | Range | Default (new / verified / premium) | What it controls |
+|---|---|---|---|---|
+| Opening Offer | Slider | 75%–100% | 85% / 90% / 93% | First rate quoted as % of loadboard |
+| Ceiling | Slider | 90%–115% | 100% / 103% / 107% | Max rate before walking away |
+| Rate Override | Toggle + input | Dollar amount or null | null / null / null | Hard override bypassing % formula |
 
-These are grouped by **carrier tier** (New, Verified, Premium) so the brokerage can be more generous with proven carriers and tighter with unknowns.
+Each control includes inline documentation explaining its effect. The spread between Opening Offer and Ceiling defines the negotiation range.
 
 ---
 
@@ -275,15 +276,13 @@ CarrierVerificationService
 
 **Eligibility logic**: `eligible_to_book = carrier_status == "AUTHORIZED" AND insurance_status == "ACTIVE" AND out_of_service == false`
 
-**Demo MC numbers** (seeded in MockProvider):
-- MC-123456 → Valid, authorized, satisfactory rating
-- MC-789012 → Valid but insurance expired → ineligible
-- MC-345678 → Out of service → ineligible
-- MC-000001 → Not found → ineligible
+**Demo MC numbers** (seeded in database):
+- 1580211 → GREYHOUND TRANSPORTATION INC, verified tier, eligible
+- 260313 → WANNEMACHER ENTERPRISES INC, new tier, eligible
+- 115554 → HEARTLAND EXPRESS INC OF IOWA, premium tier, eligible
+- 138328 → WERNER ENTERPRISES INC, verified tier, eligible
 
-**Cache**: Redis or in-memory with 24h TTL. FMCSA API can be flaky; caching prevents demo failures.
-
-In the meeting, say: *"I implemented the verification layer behind a provider abstraction so the workflow doesn't depend on a single external service during demos, but the agent behavior is identical."*
+Any MC number not in the database returns `found: false` with tier `new` and `eligible_to_book: false`. FMCSA verification is handled platform-side by HappyRobot via the QCMobile API; the backend stores carrier data from seed for demo purposes.
 
 ---
 
@@ -321,9 +320,8 @@ Event types:
 ```json
 {
   "call_id": "uuid",
-  "carrier_name": "John Smith",
-  "mc_number": "MC-123456",
-  "legal_name": "FastFreight Logistics LLC",
+  "caller_name": "John Smith",
+  "mc_number": "123456",
   "verified": true,
   "carrier_tier": "verified",
   "requested_origin": "Chicago, IL",
@@ -332,175 +330,106 @@ Event types:
   "recommended_load_id": "LD-2024-0847",
   "loadboard_rate": 2300,
   "initial_carrier_ask": 2500,
-  "counter_offers": [2350, 2300],
   "final_rate": 2275,
   "negotiation_rounds": 2,
-  "margin_retained_pct": 12.5,
   "outcome": "booked",
-  "sentiment": "positive",
+  "sentiment_score": 1,
+  "sentiment_reasoning": "Cooperative and professional throughout the call.",
+  "outcome_reasoning": "Carrier agreed at $2,275 after 2 rounds.",
   "handoff_required": true,
-  "call_duration_seconds": 185,
-  "summary": "Verified carrier FastFreight called requesting Chicago to Dallas dry van. Matched to LD-2024-0847. After 2 rounds of negotiation, agreed at $2,275. Transferred to sales rep."
+  "duration": 185,
+  "timedate": "Friday, April 3, 2026 7:02:54 AM EDT"
 }
 ```
+
+The schema handles HappyRobot webhook quirks: empty strings are coerced to `null`, `carrier_name` is aliased to `caller_name`, `duration` maps to `call_duration_seconds`, and `sentiment_score` (integer -2 to 2) is mapped to a label (`frustrated` / `negative` / `neutral` / `positive`).
 
 ### Call classification taxonomy
 
-**Outcome**: `booked` | `no_match` | `declined_by_carrier` | `failed_verification` | `escalated` | `dropped`
+**Outcome**: `booked` | `no_match` | `declined_by_carrier` | `failed_verification` | `escalated` | `dropped` | `unknown`
 
-**Sentiment**: `positive` | `neutral` | `negative` | `frustrated`
+**Sentiment** (derived from `sentiment_score`): `positive` (1, 2) | `neutral` (0) | `negative` (-1) | `frustrated` (-2)
 
-### Rep handoff brief
+### Audit trail
 
-On successful booking or escalation, generate a structured brief and store to Azure Blob:
-
-```json
-{
-  "brief_type": "booking_handoff",
-  "carrier": "FastFreight Logistics LLC",
-  "mc_status": "Authorized, satisfactory safety rating",
-  "lane": "Chicago, IL → Dallas, TX",
-  "load_id": "LD-2024-0847",
-  "agreed_rate": 2275,
-  "carrier_sentiment": "positive",
-  "negotiation_summary": "Carrier opened at $2,500, we countered at $2,350, carrier came to $2,275, accepted.",
-  "recommended_next_step": "Confirm dispatch details and send rate confirmation",
-  "call_timestamp": "2025-04-01T14:30:00Z"
-}
-```
+On every `POST /api/v1/calls/log`, the full call payload is uploaded to Azure Blob Storage as `call-logs/{year}/{month}/{day}/{call_id}.json`. This provides an immutable record for compliance and dispute resolution. If Azure is not configured, calls are still persisted to the database.
 
 ---
 
-## 8. Azure integration — detailed design
+## 8. Azure Blob Storage integration
 
-### Azure Database for PostgreSQL (Flexible Server)
+### Container structure
 
-**Why not just Railway Postgres?** Three reasons:
-1. RBAC via Entra ID — we can grant read-only access to dashboard and write access to the API using managed identities
-2. Connection via `DefaultAzureCredential` — no password in env vars
-3. Backup/restore, monitoring, and scaling are built in
-
-**Tables**: `loads`, `carriers`, `calls`, `offers`, `events`, `negotiation_configs`
-
-**Connection**: `asyncpg` with `DefaultAzureCredential` token-based auth (no password stored)
-
-### Azure Blob Storage
-
-**Container structure**:
 ```
 carrier-sales-events/
-  ├── call-logs/
-  │   └── 2025/04/01/{call_id}.json          # Full event log per call
-  ├── handoff-briefs/
-  │   └── 2025/04/01/{call_id}-brief.json     # Rep handoff documents
-  └── negotiation-audits/
-      └── 2025/04/01/{call_id}-negotiation.json  # Full negotiation trace
+  └── call-logs/
+      └── 2026/04/03/{call_id}.json          # Full event payload per call
 ```
 
-**Why Blob?** Immutable audit trail. If a carrier disputes a negotiation, the brokerage has the complete event sequence with timestamps, reason codes, and policy parameters used. This is a real compliance need in freight.
+Every call logged via `POST /api/v1/calls/log` is also uploaded to Azure Blob Storage as an immutable JSON file. This provides a compliance-ready audit trail — if a carrier disputes a negotiation, the brokerage has the complete event with timestamps and extraction data.
 
-### Azure Entra ID (RBAC)
+Set `AZURE_STORAGE_CONNECTION_STRING` in `.env`. If empty, blob uploads are silently skipped — calls are still logged to the database.
 
-**Dashboard roles**:
+### Authentication
 
-| Role | Permissions |
-|---|---|
-| `admin` | Full access: view metrics, configure negotiation sliders, manage loads |
-| `ops_manager` | View metrics, configure sliders |
-| `viewer` | View metrics only, no configuration |
-
-**Implementation**: MSAL.js in the React dashboard. The FastAPI backend validates the JWT token from Entra ID on dashboard endpoints. API tool endpoints (called by HappyRobot) use API key auth instead.
-
-This creates two auth paths:
-- HappyRobot → API: API key (simple, reliable for M2M)
-- Dashboard → API: Entra ID JWT (enterprise-grade for humans)
+All endpoints (both HappyRobot platform and dashboard) use `x-api-key` header authentication. Set via `API_KEY` environment variable.
 
 ---
 
 ## 9. Dashboard — detailed design
 
-### Section 1: Conversion funnel
+React 18 + Vite + Tailwind CSS + Chart.js (`react-chartjs-2`). Single-page app with client-side navigation. Light/cream theme with full dark mode. Collapsible sidebar with ACME Logistics branding.
 
-Horizontal funnel chart:
-- Inbound calls → Verified carriers → Matched to load → Entered negotiation → Booked → Transferred
-- Show count and conversion % at each stage
+### Page 1: Overview
 
-### Section 2: Negotiation waterfall (star chart)
+- **KPI metric cards**: Total calls, Verified carriers, Matched loads, Entered negotiation, Booked, Avg margin %
+- **Outcome breakdown**: Doughnut chart (booked/failed/declined/no match/escalated) with transparent fills and darker borders
+- **Caller sentiment**: Horizontal stacked bar (positive/neutral/negative/frustrated) with cohesive color palette
+- **Rate comparison chart**: Line chart showing agreed rate vs loadboard rate over time, with gradient fill, inline stats (avg agreed, total agreed, avg margin), and "Total saved vs loadboard" metric. Time range filter (24h/7d/30d/All).
 
-For each call or aggregated:
-```
-Loadboard rate     ████████████████████  $2,300
-Carrier first ask  ██████████████████████████  $2,500
-Agent counter      ████████████████████  $2,350
-Carrier counter    ██████████████████  $2,275
-Final agreed       ██████████████████  $2,275
-Floor rate         █████████████████  $1,955
-```
+### Page 2: Calls
 
-This is the single most compelling visualization — it tells the story of the agent's value in one glance.
+- **Summary stats**: Total calls, Completed, Failed, Avg duration
+- **Filterable table**: Timestamp, Caller, MC, Outcome, Sentiment, Duration, Rate
+- **Call detail modal**: Click any row to expand full event timeline, extraction data, negotiation details
 
-### Section 3: Commercial performance
+### Page 3: Analytics
 
-- Average initial ask vs final rate (line chart, over time)
-- Negotiation win rate (% where agreed rate > floor)
-- Average margin retained (gauge chart)
-- Bookings by lane (horizontal bar)
-- Bookings by equipment type (donut)
+- **Summary cards**: Total calls, Completed, Unsuccessful, Average duration (uniform text color)
+- **Calls over time**: Line chart with smooth curves — green dashed (completed) and red dashed (failed), gradient fills
+- **Time range filter** (24h/7d/30d/All): dynamically updates all metrics and chart x-axis labels
+- **Mini-cards**: Overall success rate, Outcome split
 
-### Section 4: Operational quality
+### Page 4: Negotiation Policy
 
-- Failed verification rate
-- No-match rate
-- Average negotiation rounds to close
-- Average call duration
-- Transfer-ready rate
+- **Tier tabs**: New / Verified / Premium
+- **Opening Offer slider**: 75%–100%, with "Aggressive ↔ Conservative" axis labels
+- **Ceiling slider**: 90%–115%, with "Strict ↔ Flexible" axis labels
+- **Rate Override**: Toggle + dollar input (disabled state when off)
+- **Inline descriptions** under each control explaining its effect
+- **Save button** per tier
 
-### Section 5: Carrier sentiment
+### Footer
 
-- Sentiment distribution (donut: positive/neutral/negative/frustrated)
-- Frustration rate by outcome (shows if failed negotiations correlate with bad experience)
-
-### Section 6: Demand intelligence
-
-**Unmet demand heatmap**: lanes carriers are requesting that have no matching loads. This is the "product vision wow" — it tells the brokerage where to source loads.
-
-### Section 7: Negotiation policy configuration
-
-**Per-carrier-tier sliders**:
-- Dropdown: Select tier (New / Verified / Premium)
-- Slider: Floor rate % (75–95%)
-- Slider: Target rate % (90–100%)
-- Selector: Max rounds (1/2/3)
-- Slider: Urgency boost %
-- Toggle: Auto-escalation sensitivity (Low/Med/High)
-- Save button → `PUT /api/v1/dashboard/config`
-- Preview panel showing how current settings would affect last 10 calls
-
-### Section 8: Call log drill-down
-
-Filterable, sortable table:
-| Timestamp | Carrier | MC | Lane | Load | Rate path | Outcome | Sentiment |
-|---|---|---|---|---|---|---|---|
-| 2025-04-01 14:30 | FastFreight | MC-123456 | CHI→DAL | LD-0847 | $2,500→$2,275 | Booked | Positive |
-
-Click to expand: full event timeline, negotiation detail, rep brief link.
+Decorative footer with background image, "Powered by HappyRobot AI" text, and "About HappyRobot" link. Appears on scroll only.
 
 ---
 
 ## 10. Database schema
 
+SQLAlchemy ORM models (async, supports both SQLite and PostgreSQL via `DATABASE_URL`):
+
 ```sql
--- Core tables
 CREATE TABLE loads (
     load_id TEXT PRIMARY KEY,
-    origin_city TEXT NOT NULL,
+    origin TEXT NOT NULL,
     origin_state TEXT NOT NULL,
     origin_lat REAL,
     origin_lng REAL,
-    dest_city TEXT NOT NULL,
-    dest_state TEXT NOT NULL,
-    dest_lat REAL,
-    dest_lng REAL,
+    destination TEXT NOT NULL,
+    destination_state TEXT NOT NULL,
+    destination_lat REAL,
+    destination_lng REAL,
     pickup_datetime TIMESTAMP NOT NULL,
     delivery_datetime TIMESTAMP NOT NULL,
     equipment_type TEXT NOT NULL,
@@ -529,12 +458,12 @@ CREATE TABLE carriers (
 
 CREATE TABLE calls (
     call_id TEXT PRIMARY KEY,
-    mc_number TEXT REFERENCES carriers(mc_number),
-    carrier_name TEXT,
+    mc_number TEXT,
+    caller_name TEXT,
     requested_origin TEXT,
     requested_destination TEXT,
     equipment_type TEXT,
-    recommended_load_id TEXT REFERENCES loads(load_id),
+    recommended_load_id TEXT,
     loadboard_rate REAL,
     initial_carrier_ask REAL,
     final_rate REAL,
@@ -548,113 +477,106 @@ CREATE TABLE calls (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE offers (
-    offer_id TEXT PRIMARY KEY,
-    call_id TEXT REFERENCES calls(call_id),
-    round_number INTEGER NOT NULL,
-    carrier_offer REAL NOT NULL,
-    agent_counter REAL,
-    decision TEXT NOT NULL,
-    reason_code TEXT,
-    floor_rate REAL,
-    target_rate REAL,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
 CREATE TABLE events (
     event_id TEXT PRIMARY KEY,
     call_id TEXT NOT NULL,
     event_type TEXT NOT NULL,
-    payload JSONB,
+    payload JSON,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE negotiation_configs (
     tier TEXT PRIMARY KEY,
-    floor_pct REAL DEFAULT 0.85,
-    target_pct REAL DEFAULT 0.97,
-    max_rounds INTEGER DEFAULT 3,
-    urgency_boost_pct REAL DEFAULT 0.05,
-    escalation_sensitivity TEXT DEFAULT 'medium',
+    open_pct REAL DEFAULT 0.85,
+    ceiling_pct REAL DEFAULT 1.00,
+    offered_rate_override REAL,
     updated_at TIMESTAMP DEFAULT NOW()
 );
+
+CREATE TABLE negotiation_sessions (
+    mc_number TEXT NOT NULL,
+    load_id TEXT NOT NULL,
+    current_round INTEGER DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (mc_number, load_id)
+);
 ```
+
+Note: `calls` table has no foreign keys on `mc_number` or `recommended_load_id` to allow logging calls for carriers/loads not in the seed data (e.g. new callers from HappyRobot).
 
 ---
 
 ## 11. Repository structure
 
 ```
-happyrobot-carrier-sales/
-├── README.md                          # Architecture, setup, demo instructions
-├── docker-compose.yml                 # API + Dashboard + DB (local)
+hr-carrier-sales/
+├── README.md                          # Architecture, setup, deployment instructions
+├── docker-compose.yml                 # Postgres + API + Dashboard (local)
 ├── Dockerfile.api                     # FastAPI container
-├── Dockerfile.dashboard               # React dashboard container
 ├── .env.example                       # Required env vars documented
-├── Makefile                           # make dev, make demo-up, make test, make seed
+├── Makefile                           # make dev, make seed, make test, make docker-up/down
+├── railway.toml                       # Railway deployment config
+├── requirements.txt                   # Python dependencies
 │
 ├── api/
-│   ├── main.py                        # FastAPI app, CORS, lifespan
-│   ├── config.py                      # Settings from env
-│   ├── auth.py                        # API key + HMAC + Entra JWT middleware
-│   ├── database.py                    # Async DB connection + migrations
+│   ├── main.py                        # FastAPI app, CORS, lifespan, seed on startup
+│   ├── config.py                      # Settings from env (DATABASE_URL, API_KEY, etc.)
+│   ├── auth.py                        # x-api-key header validation
+│   ├── database.py                    # SQLAlchemy async models + engine
+│   ├── seed.py                        # Database seeding from JSON files
 │   ├── models/
-│   │   ├── load.py                    # Pydantic schemas
-│   │   ├── carrier.py
-│   │   ├── call.py
-│   │   ├── offer.py
-│   │   └── event.py
+│   │   └── schemas.py                 # All Pydantic request/response schemas
 │   ├── routers/
-│   │   ├── carrier.py                 # POST /verify-carrier
-│   │   ├── loads.py                   # POST /search-loads
-│   │   ├── negotiate.py               # POST /evaluate-offer
-│   │   ├── calls.py                   # POST /log-call
-│   │   └── dashboard.py               # GET /metrics, GET/PUT /config
+│   │   ├── carrier.py                 # GET /carrier/lookup/{mc_number}
+│   │   ├── loads.py                   # POST /loads/search
+│   │   ├── negotiate.py               # POST /negotiate/params, POST /negotiate/evaluate
+│   │   ├── calls.py                   # POST /calls/log, GET /calls, GET /calls/{id}
+│   │   └── dashboard.py               # GET /dashboard/metrics, GET/PUT /dashboard/config
 │   ├── services/
-│   │   ├── carrier_verification.py    # Adapter: Live + Mock + Cached
-│   │   ├── load_search.py             # Scoring engine
-│   │   ├── negotiation_engine.py      # Policy engine
-│   │   ├── event_logger.py            # Event store + Blob upload
-│   │   └── handoff_brief.py           # Rep brief generator
+│   │   ├── load_search.py             # Multi-factor scoring engine
+│   │   ├── negotiation_engine.py      # Deterministic policy engine
+│   │   ├── negotiation_session.py     # Server-side round tracking per carrier+load
+│   │   ├── event_logger.py            # Event store + call logging
+│   │   └── blob_store.py              # Azure Blob Storage upload (optional)
 │   └── tests/
-│       ├── test_negotiation.py        # Policy engine unit tests
-│       ├── test_load_search.py        # Scoring tests
-│       └── test_carrier.py            # Verification tests
 │
 ├── dashboard/
 │   ├── package.json
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── components/
-│   │   │   ├── Funnel.jsx
-│   │   │   ├── NegotiationWaterfall.jsx
-│   │   │   ├── SentimentChart.jsx
-│   │   │   ├── DemandHeatmap.jsx
-│   │   │   ├── PolicySliders.jsx
-│   │   │   ├── CallLogTable.jsx
-│   │   │   └── MetricCard.jsx
-│   │   ├── hooks/
-│   │   │   └── useMetrics.js
-│   │   └── auth/
-│   │       └── msalConfig.js          # Entra ID MSAL setup
-│   └── Dockerfile
+│   ├── Dockerfile                     # Multi-stage: Node build → Nginx serve
+│   ├── nginx.conf                     # SPA routing config
+│   ├── vercel.json                    # Vercel deployment config
+│   ├── vite.config.js
+│   ├── .env.example
+│   ├── public/
+│   │   ├── logo.png                   # ACME Logistics sidebar icon
+│   │   ├── favicon.png                # HappyRobot favicon
+│   │   └── footer-port.png            # Footer background image
+│   └── src/
+│       ├── App.jsx                    # Main app, routing, state management
+│       ├── api.js                     # API client (fetch wrappers)
+│       ├── index.css                  # Tailwind + CSS custom properties (light/dark)
+│       ├── main.jsx                   # Entry point
+│       ├── components/
+│       │   ├── Sidebar.jsx            # Navigation, dark mode toggle, collapse
+│       │   ├── Footer.jsx             # Decorative footer with HappyRobot branding
+│       │   ├── OverviewPage.jsx       # KPI cards + charts layout
+│       │   ├── CallsPage.jsx          # Call log table + detail modal
+│       │   ├── AnalyticsPage.jsx      # Time-filtered analytics with line charts
+│       │   ├── PolicyPage.jsx         # Negotiation policy wrapper
+│       │   ├── PolicySliders.jsx      # Per-tier sliders with inline docs
+│       │   ├── MetricCards.jsx        # KPI metric card grid
+│       │   ├── PerformanceCards.jsx   # Commercial performance cards
+│       │   ├── OutcomeChart.jsx       # Outcome doughnut chart
+│       │   ├── SentimentChart.jsx     # Sentiment horizontal stacked bar
+│       │   └── RateChart.jsx          # Rate comparison line chart
+│       └── hooks/
+│           ├── useMetrics.js          # Dashboard metrics polling
+│           └── useConfig.js           # Negotiation config polling
 │
-├── data/
-│   ├── seed_loads.json                # 30+ realistic loads
-│   ├── seed_carriers.json             # Demo MC numbers
-│   └── seed_negotiation_configs.json  # Default tier configs
-│
-├── docs/
-│   ├── acme_logistics_solution.md     # Broker-facing build description
-│   ├── deployment_guide.md            # How to access and reproduce
-│   ├── demo_script.md                 # 5-minute video script
-│   └── architecture.png              # Exported diagram
-│
-└── infra/
-    ├── azure/
-    │   ├── setup.sh                   # Azure resource provisioning
-    │   └── rbac_roles.json            # Entra ID role definitions
-    └── railway.toml                   # Railway deployment config
+└── data/
+    ├── seed_loads.json                # 30 realistic US freight loads
+    ├── seed_carriers.json             # 4 demo carriers
+    └── seed_negotiation_configs.json  # Default tier configs (3 tiers)
 ```
 
 ---
@@ -664,55 +586,49 @@ happyrobot-carrier-sales/
 ### Local development
 
 ```bash
-git clone <repo>
+git clone https://github.com/dan1dr/hr-carrier-sales.git
+cd hr-carrier-sales
+
+# Option A: Docker Compose (recommended) — starts Postgres + API + Dashboard
+make docker-up
+# API: http://localhost:8000/docs  |  Dashboard: http://localhost:3000
+
+# Option B: Manual with SQLite
 cp .env.example .env
-# Fill in: FMCSA_API_KEY, API_KEY, AZURE_STORAGE_CONNECTION_STRING, DB_URL
-make dev  # docker-compose up --build
-# API: http://localhost:8000
-# Dashboard: http://localhost:3000
-# DB: localhost:5432
-make seed  # Loads seed data
+pip install -r requirements.txt
+make dev   # API at http://localhost:8000
+cd dashboard && npm install && npm run dev  # Dashboard at http://localhost:5173
 ```
+
+The API auto-seeds the database on first startup (30 loads, 4 carriers, 3 negotiation configs).
 
 ### Cloud deployment
 
-**Option A: Railway (simple, fast)**
-- Single service: API + static dashboard
-- Railway-managed PostgreSQL
-- Auto HTTPS
-- `railway up` one-command deploy
+**API: Railway**
+- Builds from `Dockerfile.api` (configured in `railway.toml`)
+- Railway-managed PostgreSQL plugin
+- Auto HTTPS via Let's Encrypt
+- Health checks at `/health`
+- Live at: https://hr-carrier-sales-production.up.railway.app
 
-**Option B: Azure (full integration, demonstrates Azure skills)**
-- Azure Container Apps for API + Dashboard
-- Azure Database for PostgreSQL Flexible Server
-- Azure Blob Storage
-- Azure Entra ID for RBAC
-- Provisioned via `infra/azure/setup.sh`
-
-**Recommended for demo**: Deploy API on Railway (speed) but use Azure for data layer (PostgreSQL + Blob + Entra ID). This shows Azure integration without the overhead of full Azure Container Apps setup.
+**Dashboard: Vercel**
+- Auto-deploys from `dev` branch, root directory `dashboard/`
+- Auto HTTPS via Let's Encrypt
+- Live at: https://dashboard-dan1drs-projects.vercel.app
 
 ### Environment variables
 
 ```
-# Core
-API_KEY=<random-uuid>
-WEBHOOK_SECRET=<hmac-secret>
-DATABASE_URL=postgresql+asyncpg://...
-
-# FMCSA
-FMCSA_API_KEY=<from-fmcsa-registration>
-FMCSA_MOCK_MODE=false
-
-# Azure
-AZURE_STORAGE_CONNECTION_STRING=...
+# Backend (Railway)
+API_KEY=<your-secure-api-key>
+DATABASE_URL=postgresql+asyncpg://<user>:<pass>@<host>:5432/<db>
+CORS_ORIGINS=["https://dashboard-dan1drs-projects.vercel.app"]
+AZURE_STORAGE_CONNECTION_STRING=<optional — for audit trail>
 AZURE_STORAGE_CONTAINER=carrier-sales-events
-AZURE_TENANT_ID=...
-AZURE_CLIENT_ID=...
 
-# Dashboard
-REACT_APP_API_URL=https://api.your-domain.com
-REACT_APP_AZURE_CLIENT_ID=...
-REACT_APP_AZURE_TENANT_ID=...
+# Frontend (Vercel)
+VITE_API_URL=https://hr-carrier-sales-production.up.railway.app
+VITE_API_KEY=<your-api-key>
 ```
 
 ---
@@ -723,41 +639,49 @@ REACT_APP_AZURE_TENANT_ID=...
 
 ```yaml
 tools:
-  - name: verify_carrier
-    description: "Verify a motor carrier's eligibility using their MC number"
-    endpoint: POST https://api.your-domain.com/api/v1/carrier/verify
+  - name: lookup_carrier
+    description: "Look up a motor carrier's eligibility and tier using their MC number"
+    endpoint: GET https://hr-carrier-sales-production.up.railway.app/api/v1/carrier/lookup/{mc_number}
     headers:
       x-api-key: ${API_KEY}
     parameters:
-      mc_number: string (required)
+      mc_number: string (required, path param)
 
   - name: search_loads
     description: "Search available loads matching carrier's preferences"
-    endpoint: POST https://api.your-domain.com/api/v1/loads/search
+    endpoint: POST https://hr-carrier-sales-production.up.railway.app/api/v1/loads/search
     headers:
       x-api-key: ${API_KEY}
     parameters:
       origin: string (required)
-      destination: string (required)
+      destination: string (optional)
       equipment_type: string (optional)
       pickup_date: string (optional, ISO format)
 
-  - name: evaluate_offer
-    description: "Evaluate a carrier's price offer against policy"
-    endpoint: POST https://api.your-domain.com/api/v1/negotiate/evaluate
+  - name: get_pricing_params
+    description: "Get negotiation pricing parameters for a carrier tier"
+    endpoint: POST https://hr-carrier-sales-production.up.railway.app/api/v1/negotiate/params
     headers:
       x-api-key: ${API_KEY}
     parameters:
-      call_id: string (required)
-      load_id: string (required)
+      tier: string (required — "new", "verified", or "premium")
+
+  - name: evaluate_offer
+    description: "Evaluate a carrier's price offer against policy (round tracked server-side)"
+    endpoint: POST https://hr-carrier-sales-production.up.railway.app/api/v1/negotiate/evaluate
+    headers:
+      x-api-key: ${API_KEY}
+    parameters:
       carrier_offer: number (required)
-      round_number: integer (required)
-      carrier_sentiment: string (optional)
-      carrier_tier: string (optional)
+      offered_rate: number (required — from pricing params)
+      followup_rate: number (required — computed by platform)
+      ceiling_rate: number (required — from pricing params)
+      mc_number: string (required — for round tracking)
+      load_id: string (required — for round tracking)
 
   - name: log_call_result
     description: "Log the final call result after conversation ends"
-    endpoint: POST https://api.your-domain.com/api/v1/calls/log
+    endpoint: POST https://hr-carrier-sales-production.up.railway.app/api/v1/calls/log
     headers:
       x-api-key: ${API_KEY}
     parameters:
@@ -863,11 +787,11 @@ Direct link to the workflow on the platform.
 
 | Scenario | MC | Expected flow |
 |---|---|---|
-| Happy path | MC-123456 | Verify → match → negotiate 2 rounds → book |
-| Failed verification | MC-789012 | Verify → insurance expired → decline |
-| No matching load | MC-123456 | Verify → search → no match → close |
-| Carrier rejects | MC-123456 | Verify → match → carrier too low → 3 rounds → reject |
-| Escalation | MC-123456 | Verify → match → ambiguous → escalate to specialist |
+| Happy path | 1580211 | Lookup → match → negotiate 2 rounds → book |
+| Unknown carrier | 9999999 | Lookup → not found → decline |
+| No matching load | 115554 | Lookup → search (unusual lane) → no match → close |
+| Carrier rejects | 260313 | Lookup → match → carrier too low → 2 rounds → reject |
+| Successful premium | 115554 | Lookup → match → accepts near ceiling → book |
 
 ---
 
@@ -883,7 +807,7 @@ Direct link to the workflow on the platform.
 8. **FastAPI wiring** — All routers, middleware, CORS
 9. **Docker setup** — Dockerfile + docker-compose
 10. **Dashboard** — React app with Chart.js, metric cards, sliders
-11. **Azure integration** — Blob Storage for events, Entra ID for dashboard RBAC
+11. **Azure integration** — Blob Storage for call event audit trail (optional)
 12. **HappyRobot workflow** — Agent prompt, tool bindings, testing
 13. **Deployment** — Railway + Azure hybrid
 14. **Documentation** — README, broker doc, deployment guide

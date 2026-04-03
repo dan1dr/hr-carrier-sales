@@ -28,10 +28,11 @@ HappyRobot Voice Agent (platform)
 ┌──────────────────────┐
 │  React Dashboard     │
 │  (Vercel)            │
-│  ├── KPI metrics     │
-│  ├── Conversion funnel│
-│  ├── Charts          │
-│  └── Policy sliders  │
+│  ├── Overview (KPIs) │
+│  ├── Calls (log)     │
+│  ├── Analytics       │
+│  └── Negotiation     │
+│      policy config   │
 └──────────────────────┘
 ```
 
@@ -48,6 +49,8 @@ HappyRobot Voice Agent (platform)
 | `/api/v1/negotiate/params` | POST | Get pricing params (open_pct, ceiling_pct, override) for a tier |
 | `/api/v1/negotiate/evaluate` | POST | Evaluate carrier's price offer against policy |
 | `/api/v1/calls/log` | POST | Log call outcome, sentiment, extraction data |
+| `/api/v1/calls` | GET | Paginated call list with status/outcome filters |
+| `/api/v1/calls/{call_id}` | GET | Single call detail with event history |
 | `/api/v1/dashboard/metrics` | GET | Aggregated metrics for dashboard |
 | `/api/v1/dashboard/config` | GET/PUT | Negotiation policy sliders per carrier tier |
 | `/health` | GET | Health check |
