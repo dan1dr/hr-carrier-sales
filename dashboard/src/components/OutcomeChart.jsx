@@ -27,19 +27,15 @@ export default function OutcomeChart({ breakdown }) {
     labels,
     datasets: [{
       data: values,
-      backgroundColor: colors.map(c => c + '22'),
-      borderColor: colors,
-      borderWidth: 1.5,
-      hoverBackgroundColor: colors.map(c => c + '44'),
-      spacing: 1,
-      borderRadius: 2,
+      backgroundColor: colors,
+      borderWidth: 0,
     }],
   }
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    cutout: '72%',
+    cutout: '78%',
     plugins: {
       legend: { display: false },
       tooltip: {

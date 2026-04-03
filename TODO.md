@@ -39,10 +39,6 @@
 
 - [ ] Call log table with drill-down (needs `GET /api/v1/calls` endpoint)
 - [ ] Latency metrics per conversation
-- [ ] Azure Entra ID for dashboard RBAC (admin / viewer roles)
-- [ ] Unit tests for negotiation engine (all policy branches)
-- [ ] Unit tests for load search scoring
-- [ ] HMAC webhook signature verification
 - [ ] Dashboard date-range filtering
 
 ## Docs & deliverables

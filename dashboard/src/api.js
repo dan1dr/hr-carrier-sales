@@ -18,6 +18,21 @@ export async function fetchConfig() {
   return res.json()
 }
 
+export async function fetchCalls({ limit = 50, offset = 0, outcome, sentiment } = {}) {
+  const params = new URLSearchParams({ limit, offset })
+  if (outcome) params.set('outcome', outcome)
+  if (sentiment) params.set('sentiment', sentiment)
+  const res = await fetch(`${BASE_URL}/api/v1/calls?${params}`, { headers })
+  if (!res.ok) throw new Error(`Calls fetch failed: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchCall(callId) {
+  const res = await fetch(`${BASE_URL}/api/v1/calls/${callId}`, { headers })
+  if (!res.ok) throw new Error(`Call fetch failed: ${res.status}`)
+  return res.json()
+}
+
 export async function updateConfig(config) {
   const res = await fetch(`${BASE_URL}/api/v1/dashboard/config`, {
     method: 'PUT',

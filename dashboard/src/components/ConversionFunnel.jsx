@@ -36,16 +36,22 @@ export default function ConversionFunnel({ metrics }) {
                 </div>
               )}
               <div className="flex items-center gap-3">
-                <div className="w-20 text-[13px] text-text-secondary font-medium text-right shrink-0">
-                  {stage.label}
-                </div>
-                <div className="flex-1 relative h-7 bg-surface-2 rounded overflow-hidden">
+                <div className="w-20 flex items-center justify-end gap-2 shrink-0">
                   <div
-                    className="absolute inset-y-0 left-0 rounded transition-all duration-500 ease-out"
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ backgroundColor: COLORS[i] }}
+                    aria-hidden
+                  />
+                  <div className="text-[13px] text-text-secondary font-medium text-right">
+                    {stage.label}
+                  </div>
+                </div>
+                <div className="flex-1 relative h-7 bg-surface-2 rounded-sm overflow-hidden">
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-sm transition-all duration-500 ease-out"
                     style={{
                       width: `${Math.max(Number(pct), 3)}%`,
-                      backgroundColor: COLORS[i] + '18',
-                      borderLeft: `3px solid ${COLORS[i]}`,
+                      backgroundColor: COLORS[i] + '15',
                     }}
                   />
                   <div className="absolute inset-0 flex items-center px-3">
