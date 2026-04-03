@@ -38,7 +38,7 @@ HappyRobot Voice Agent (platform)
 
 **Live deployments:**
 - **API:** https://hr-carrier-sales-production.up.railway.app
-- **Dashboard:** https://dashboard-nu-opal-bki3bk0cut.vercel.app
+- **Dashboard:** https://dashboard-dan1drs-projects.vercel.app
 
 ## Endpoints
 
@@ -164,7 +164,7 @@ railway up
 
 ## Deploy to Vercel (dashboard)
 
-Currently deployed at: **https://dashboard-nu-opal-bki3bk0cut.vercel.app**
+Currently deployed at: **https://dashboard-dan1drs-projects.vercel.app**
 
 The dashboard auto-deploys from the `dev` branch. Vercel is configured with root directory `dashboard/`.
 
