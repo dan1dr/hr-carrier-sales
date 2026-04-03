@@ -1,6 +1,6 @@
 """Server-side negotiation round tracking per carrier + load."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,19 +11,13 @@ from api.models.schemas import EvaluateOfferResponse
 SESSION_TTL = timedelta(minutes=3)
 
 
-def _utc(dt: datetime) -> datetime:
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt
-
-
 async def resolve_round(
     db: AsyncSession,
     mc_number: str,
     load_id: str,
 ) -> tuple[int, NegotiationSessionRow | None]:
     """Return stored round for this carrier+load, or 0 after idle TTL."""
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     result = await db.execute(
         select(NegotiationSessionRow).where(
             NegotiationSessionRow.mc_number == mc_number,
@@ -35,7 +29,7 @@ async def resolve_round(
     if row is None:
         return 0, None
 
-    if now - _utc(row.updated_at) > SESSION_TTL:
+    if now - row.updated_at > SESSION_TTL:
         row.current_round = 0
         return 0, row
 
@@ -50,7 +44,7 @@ async def persist_after_evaluate(
     round_used: int,
     resp: EvaluateOfferResponse,
 ) -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
 
     if resp.decision in ("accept", "reject"):
         if row is not None:
