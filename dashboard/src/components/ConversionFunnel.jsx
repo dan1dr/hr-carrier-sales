@@ -1,0 +1,63 @@
+import React from 'react'
+
+const stages = [
+  { key: 'total_calls', label: 'Inbound' },
+  { key: 'verified_carriers', label: 'Verified' },
+  { key: 'matched_loads', label: 'Matched' },
+  { key: 'entered_negotiation', label: 'Negotiated' },
+  { key: 'booked', label: 'Booked' },
+]
+
+const COLORS = ['#6639ba', '#0969da', '#9a6700', '#6639ba', '#1a7f37']
+
+export default function ConversionFunnel({ metrics }) {
+  if (!metrics) return null
+
+  const maxVal = metrics.total_calls || 1
+
+  return (
+    <div className="border border-border rounded-lg p-5">
+      <h3 className="text-[13px] font-medium text-text-secondary mb-4">Conversion Funnel</h3>
+
+      <div className="space-y-2.5">
+        {stages.map((stage, i) => {
+          const value = metrics[stage.key] ?? 0
+          const pct = ((value / maxVal) * 100).toFixed(0)
+          const prevValue = i > 0 ? (metrics[stages[i - 1].key] ?? 0) : null
+          const dropOff = prevValue && prevValue > 0
+            ? (((prevValue - value) / prevValue) * 100).toFixed(0)
+            : null
+
+          return (
+            <div key={stage.key}>
+              {dropOff && (
+                <div className="ml-20 mb-0.5 text-[11px] text-text-muted">
+                  ↓ {dropOff}% drop
+                </div>
+              )}
+              <div className="flex items-center gap-3">
+                <div className="w-20 text-[13px] text-text-secondary font-medium text-right shrink-0">
+                  {stage.label}
+                </div>
+                <div className="flex-1 relative h-7 bg-surface-2 rounded overflow-hidden">
+                  <div
+                    className="absolute inset-y-0 left-0 rounded transition-all duration-500 ease-out"
+                    style={{
+                      width: `${Math.max(Number(pct), 3)}%`,
+                      backgroundColor: COLORS[i] + '18',
+                      borderLeft: `3px solid ${COLORS[i]}`,
+                    }}
+                  />
+                  <div className="absolute inset-0 flex items-center px-3">
+                    <span className="text-[13px] font-semibold text-text-primary">{value}</span>
+                    <span className="text-[11px] text-text-muted ml-1.5">{pct}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}

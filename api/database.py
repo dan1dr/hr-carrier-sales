@@ -59,7 +59,7 @@ class CallRow(Base):
 
     call_id: Mapped[str] = mapped_column(Text, primary_key=True, default=lambda: str(uuid.uuid4()))
     mc_number: Mapped[str | None] = mapped_column(Text, ForeignKey("carriers.mc_number"))
-    carrier_name: Mapped[str | None] = mapped_column(Text)
+    caller_name: Mapped[str | None] = mapped_column(Text)
     requested_origin: Mapped[str | None] = mapped_column(Text)
     requested_destination: Mapped[str | None] = mapped_column(Text)
     equipment_type: Mapped[str | None] = mapped_column(Text)

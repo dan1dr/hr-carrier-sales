@@ -38,6 +38,16 @@ async def get_metrics(
         .where(CallRow.negotiation_rounds > 0)
     )).scalar()
 
+    total_duration = (await db.execute(
+        select(func.sum(CallRow.call_duration_seconds))
+        .where(CallRow.call_duration_seconds.isnot(None))
+    )).scalar()
+
+    avg_duration = (await db.execute(
+        select(func.avg(CallRow.call_duration_seconds))
+        .where(CallRow.call_duration_seconds.isnot(None))
+    )).scalar()
+
     booked = outcome_breakdown.get("booked", 0)
     verified = total - outcome_breakdown.get("failed_verification", 0)
     matched = verified - outcome_breakdown.get("no_match", 0)
@@ -51,6 +61,8 @@ async def get_metrics(
         booked=booked,
         avg_margin_pct=round(avg_margin, 1) if avg_margin else None,
         avg_negotiation_rounds=round(avg_rounds, 1) if avg_rounds else None,
+        total_call_minutes=round(total_duration / 60, 1) if total_duration else None,
+        avg_call_duration_seconds=round(avg_duration, 0) if avg_duration else None,
         outcome_breakdown=outcome_breakdown,
         sentiment_breakdown=sentiment_breakdown,
     )

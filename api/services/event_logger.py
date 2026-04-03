@@ -30,7 +30,7 @@ async def log_call(db: AsyncSession, req: LogCallRequest) -> LogCallResponse:
     call = CallRow(
         call_id=call_id,
         mc_number=req.mc_number,
-        carrier_name=req.carrier_name,
+        caller_name=req.caller_name,
         requested_origin=req.requested_origin,
         requested_destination=req.requested_destination,
         equipment_type=req.equipment_type,

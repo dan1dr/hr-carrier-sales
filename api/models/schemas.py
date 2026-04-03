@@ -108,7 +108,7 @@ _SENTIMENT_MAP = {
 
 class LogCallRequest(BaseModel):
     call_id: str | None = None
-    carrier_name: str | None = None
+    caller_name: str | None = None
     mc_number: str | None = None
     legal_name: str | None = None
     verified: bool | None = None
@@ -124,8 +124,6 @@ class LogCallRequest(BaseModel):
     negotiation_rounds: int = 0
     margin_retained_pct: float | None = None
     outcome: str = "unknown"
-    classification: str | None = None
-    sentiment: str | None = None
     sentiment_score: int | None = None
     sentiment_reasoning: str | None = None
     outcome_reasoning: str | None = None
@@ -138,12 +136,28 @@ class LogCallRequest(BaseModel):
     p90_latency: float | None = None
     miles: float | None = None
 
+    @field_validator("verified", mode="before")
+    @classmethod
+    def coerce_verified_bool(cls, v):
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
+
+    @field_validator("handoff_required", mode="before")
+    @classmethod
+    def coerce_handoff_bool(cls, v):
+        if isinstance(v, str) and not v.strip():
+            return False
+        return v
+
     @model_validator(mode="before")
     @classmethod
     def normalize_aliases_and_coerce(cls, values):
         if not isinstance(values, dict):
             return values
         v = dict(values)
+        if v.get("carrier_name") is not None and v.get("caller_name") is None:
+            v["caller_name"] = v.pop("carrier_name")
         if v.get("origin") is not None and v.get("requested_origin") is None:
             v["requested_origin"] = v["origin"]
         if v.get("destination") is not None and v.get("requested_destination") is None:
@@ -151,10 +165,7 @@ class LogCallRequest(BaseModel):
         if "duration" in v and v.get("call_duration_seconds") is None:
             v["call_duration_seconds"] = v["duration"]
         o = v.get("outcome")
-        c = v.get("classification")
-        if c and (o is None or _empty_to_none(o) is None or str(o).strip() in ("0",)):
-            v["outcome"] = c
-        elif o is None or _empty_to_none(o) is None or str(o).strip() in ("0",):
+        if o is None or _empty_to_none(o) is None or str(o).strip() in ("0",):
             v["outcome"] = "unknown"
         nullable_numeric = (
             "loadboard_rate", "initial_carrier_ask", "final_rate",
@@ -170,9 +181,7 @@ class LogCallRequest(BaseModel):
         return v
 
     def resolve_sentiment(self) -> str | None:
-        """Return a label from explicit sentiment or mapped from sentiment_score."""
-        if self.sentiment:
-            return self.sentiment
+        """Map sentiment_score to a label."""
         if self.sentiment_score is not None:
             return _SENTIMENT_MAP.get(self.sentiment_score, "neutral")
         return None
@@ -193,6 +202,8 @@ class DashboardMetrics(BaseModel):
     booked: int = 0
     avg_margin_pct: float | None = None
     avg_negotiation_rounds: float | None = None
+    total_call_minutes: float | None = None
+    avg_call_duration_seconds: float | None = None
     outcome_breakdown: dict[str, int] = {}
     sentiment_breakdown: dict[str, int] = {}
 

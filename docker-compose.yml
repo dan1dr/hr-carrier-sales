@@ -11,5 +11,17 @@ services:
       - db-data:/app/data
     restart: unless-stopped
 
+  dashboard:
+    build:
+      context: ./dashboard
+      args:
+        VITE_API_URL: http://localhost:8000
+        VITE_API_KEY: dev-api-key
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   db-data:
