@@ -614,7 +614,7 @@ The API auto-seeds the database on first startup (30 loads, 4 carriers, 3 negoti
 **Dashboard: Vercel**
 - Auto-deploys from `dev` branch, root directory `dashboard/`
 - Auto HTTPS via Let's Encrypt
-- Live at: https://dashboard-dan1drs-projects.vercel.app
+- Live at: https://dashboard-nu-opal-bki3bk0cut.vercel.app
 
 ### Environment variables
 
@@ -622,7 +622,7 @@ The API auto-seeds the database on first startup (30 loads, 4 carriers, 3 negoti
 # Backend (Railway)
 API_KEY=<your-secure-api-key>
 DATABASE_URL=postgresql+asyncpg://<user>:<pass>@<host>:5432/<db>
-CORS_ORIGINS=["https://dashboard-dan1drs-projects.vercel.app"]
+CORS_ORIGINS=["https://dashboard-nu-opal-bki3bk0cut.vercel.app"]
 AZURE_STORAGE_CONNECTION_STRING=<optional — for audit trail>
 AZURE_STORAGE_CONTAINER=carrier-sales-events
 

@@ -83,7 +83,7 @@
 ┌──────────────────────────────────────────────────────────────────────┐
 │                                                                      │
 │   React Dashboard  ·  Vercel                                         │
-│   https://dashboard-dan1drs-projects.vercel.app                      │
+│   https://dashboard-nu-opal-bki3bk0cut.vercel.app                      │
 │                                                                      │
 │   ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌──────────────────┐  │
 │   │ Overview │ │  Calls   │ │  Analytics   │ │  Negotiation     │  │
