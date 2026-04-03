@@ -1,6 +1,6 @@
 # Inbound Carrier Sales Automation
 
-Backend API for HappyRobot's inbound carrier sales voice workflow. Carriers call in, get matched to loads, negotiate pricing through a deterministic policy engine, and get transferred to dispatch.
+Backend API + operations dashboard for HappyRobot's inbound carrier sales voice workflow. Carriers call in, get verified, matched to loads, negotiate pricing through a deterministic policy engine, and get transferred to dispatch.
 
 ## Architecture
 
@@ -10,20 +10,34 @@ HappyRobot Voice Agent (platform)
    │
    │  x-api-key authenticated HTTP
    ▼
-   FastAPI Backend
-   ├── Carrier lookup (DB → eligibility + tier for known carriers)
-   ├── Load search (adaptive multi-factor scoring)
-   ├── Negotiation params (tier-specific pricing targets)
-   ├── Negotiation engine (deterministic accept/counter/reject)
-   ├── Call logging (event store + post-call extraction)
-   └── Dashboard metrics + config API
-        │
-        ├──▼── SQLite (local) / PostgreSQL (prod)
-        │
-        └──▶── Azure Blob Storage (immutable audit trail)
+┌─────────────────────────────────────────────┐
+│  FastAPI Backend (Railway)                  │
+│  ├── Carrier lookup (DB → eligibility/tier) │
+│  ├── Load search (multi-factor scoring)     │
+│  ├── Negotiation params + engine            │
+│  ├── Call logging (event store)             │
+│  └── Dashboard metrics + config API         │
+│       │              │                      │
+│       ▼              ▼                      │
+│  PostgreSQL     Azure Blob Storage          │
+│  (Railway)      (immutable audit trail)     │
+└─────────────────────────────────────────────┘
+         │
+         │  HTTPS (API)
+         ▼
+┌──────────────────────┐
+│  React Dashboard     │
+│  (Vercel)            │
+│  ├── KPI metrics     │
+│  ├── Conversion funnel│
+│  ├── Charts          │
+│  └── Policy sliders  │
+└──────────────────────┘
 ```
 
-FMCSA carrier verification is handled by the HappyRobot platform (which calls the FMCSA QCMobile API directly with the API key configured there). The backend's `/carrier/lookup` endpoint returns the carrier's tier and eligibility from the local database — this is used for negotiation policy selection, not for regulatory verification.
+**Live deployments:**
+- **API:** https://hr-carrier-sales-production.up.railway.app
+- **Dashboard:** https://dashboard-dan1drs-projects.vercel.app
 
 ## Endpoints
 
@@ -42,17 +56,39 @@ FMCSA carrier verification is handled by the HappyRobot platform (which calls th
 
 - Python 3.11+
 - pip
-- Docker (optional, for containerized run)
-- Railway CLI (optional, for cloud deployment): `brew install railway`
+- Node.js 18+ and npm (for the dashboard)
+- Docker and Docker Compose (for containerized local dev)
+- Railway CLI (for cloud deployment): `brew install railway`
 
 ## Local setup
+
+### Option 1: Docker Compose (recommended)
+
+Starts PostgreSQL, the API, and the dashboard in one command:
 
 ```bash
 # 1. Clone the repo
 git clone https://github.com/dan1dr/hr-carrier-sales.git
 cd hr-carrier-sales
 
-# 2. Create a virtual environment (recommended)
+# 2. Start everything (Postgres + API + Dashboard)
+make docker-up
+
+# 3. Open
+#    API:       http://localhost:8000/docs
+#    Dashboard: http://localhost:3000
+```
+
+The API auto-seeds the database on first startup (30 loads, 4 carriers, 3 negotiation configs).
+
+### Option 2: Manual (SQLite)
+
+```bash
+# 1. Clone and set up
+git clone https://github.com/dan1dr/hr-carrier-sales.git
+cd hr-carrier-sales
+
+# 2. Create a virtual environment
 python -m venv .venv
 source .venv/bin/activate
 
@@ -61,13 +97,21 @@ pip install -r requirements.txt
 
 # 4. Set up environment variables
 cp .env.example .env
-# Edit .env if you want to change API_KEY or DATABASE_URL
+# Default uses SQLite — no Postgres needed
 
-# 5. Seed the database (30 loads, 4 carriers, 3 negotiation configs)
-make seed
-
-# 6. Start the API
+# 5. Start the API (auto-seeds on startup)
 make dev
+```
+
+To also run the dashboard locally:
+
+```bash
+cd dashboard
+npm install
+cp .env.example .env
+# Edit .env: VITE_API_URL=http://localhost:8000, VITE_API_KEY=dev-api-key
+npm run dev
+# Dashboard at http://localhost:5173
 ```
 
 The API will be running at:
@@ -77,23 +121,11 @@ The API will be running at:
 
 To authenticate in Swagger UI, click **Authorize** and enter the API key (default: `dev-api-key`).
 
-## Local setup with Docker
-
-```bash
-# Build and run
-make docker-up
-
-# Stop
-make docker-down
-```
-
-The Docker setup builds the API image, seeds the database at build time, and exposes port 8000.
-
-## Deploy to Railway
+## Deploy to Railway (backend)
 
 Currently deployed at: **https://hr-carrier-sales-production.up.railway.app**
 
-The `railway.toml` at the repo root tells Railway to build from `Dockerfile.api` and use `/health` for health checks. The Dockerfile reads `$PORT` at runtime so Railway can assign its own port.
+The `railway.toml` tells Railway to build from `Dockerfile.api` and use `/health` for health checks.
 
 ```bash
 # 1. Install CLI and login
@@ -102,17 +134,23 @@ railway login
 
 # 2. Create a project and link the service
 railway init
-railway service    # select the service when prompted
+railway service
 
-# 3. Set environment variables
+# 3. Add a PostgreSQL database
+#    In the Railway dashboard, click "New" → "Database" → "PostgreSQL"
+#    Copy the internal DATABASE_URL (postgresql+asyncpg://...)
+
+# 4. Set environment variables
 railway variables set API_KEY=<your-secure-api-key>
-railway variables set DATABASE_URL="sqlite+aiosqlite:///./data/carrier_sales.db"
-railway variables set 'CORS_ORIGINS=["*"]'   # demo-only; restrict to specific origins in production
+railway variables set DATABASE_URL="postgresql+asyncpg://<user>:<pass>@<host>:5432/<db>"
+railway variables set 'CORS_ORIGINS=["https://your-dashboard-domain.vercel.app"]'
+# Optional: Azure Blob Storage for audit trail
+railway variables set AZURE_STORAGE_CONNECTION_STRING="<your-connection-string>"
 
-# 4. Deploy
+# 5. Deploy
 railway up
 
-# 5. Generate a public HTTPS URL (TLS via Let's Encrypt, managed by Railway)
+# 6. Generate a public HTTPS URL (TLS via Let's Encrypt)
 railway domain
 ```
 
@@ -121,9 +159,70 @@ To redeploy after changes:
 railway up
 ```
 
-## Demo MC numbers
+## Deploy to Vercel (dashboard)
 
-All seeded carriers use real FMCSA-registered MC numbers:
+Currently deployed at: **https://dashboard-dan1drs-projects.vercel.app**
+
+The dashboard auto-deploys from the `dev` branch. Vercel is configured with root directory `dashboard/`.
+
+```bash
+# 1. Install Vercel CLI
+npm i -g vercel
+
+# 2. Login and link
+vercel login
+cd dashboard && vercel link
+
+# 3. Set environment variables
+vercel env add VITE_API_URL production
+# Enter: https://your-railway-app.up.railway.app
+vercel env add VITE_API_KEY production
+# Enter: your API key
+
+# 4. Deploy
+vercel --prod
+```
+
+Or connect the GitHub repo in the Vercel dashboard for auto-deploys on push.
+
+## Database
+
+PostgreSQL in production (Railway Postgres plugin), SQLite for local dev. Switch via `DATABASE_URL` in `.env`:
+
+```
+# SQLite (default for local dev)
+DATABASE_URL=sqlite+aiosqlite:///./data/carrier_sales.db
+
+# PostgreSQL (production)
+DATABASE_URL=postgresql+asyncpg://user:password@host:5432/dbname
+```
+
+No code changes needed — SQLAlchemy handles both via async drivers.
+
+**Tables:**
+
+| Table | Purpose |
+|---|---|
+| `loads` | Available freight loads (origin, destination, rate, equipment) |
+| `carriers` | Carrier profiles (MC number, tier, eligibility, FMCSA data) |
+| `calls` | Call log (outcome, sentiment, rates, duration, timestamps) |
+| `events` | Event store (call_completed events with full payload) |
+| `negotiation_configs` | Per-tier pricing policy (open_pct, ceiling_pct, max_rounds) |
+| `negotiation_sessions` | Active negotiation state per carrier+load pair |
+
+## Azure Blob Storage (audit trail)
+
+Every call logged via `POST /api/v1/calls/log` is also uploaded to Azure Blob Storage as an immutable JSON file.
+
+```
+carrier-sales-events/
+  └── call-logs/
+      └── 2026/04/02/{call_id}.json
+```
+
+Set `AZURE_STORAGE_CONNECTION_STRING` in `.env`. If empty, blob uploads are silently skipped — calls are still logged to the database.
+
+## Demo MC numbers
 
 | MC Number | Carrier | Tier | Status |
 |---|---|---|---|
@@ -140,29 +239,15 @@ The negotiation system uses a two-stage flow: the HappyRobot platform computes r
 
 ### Tunable parameters (per carrier tier)
 
-These are stored in the `negotiation_configs` table and can be updated from the dashboard via `PUT /api/v1/dashboard/config`.
+Stored in `negotiation_configs` table, editable from the dashboard via `PUT /api/v1/dashboard/config`.
 
 | Param | Type | Description | Defaults (new / verified / premium) |
 |---|---|---|---|
-| `open_pct` | float | Starting offer as a % of loadboard rate. Lower = more aggressive. | 0.85 / 0.90 / 0.93 |
-| `ceiling_pct` | float | Max we'll ever pay as a % of loadboard rate. Higher = more flexible. | 1.00 / 1.03 / 1.07 |
-| `offered_rate_override` | float or null | Hard dollar override for the offer. Bypasses `open_pct` when set. Set to `null` to use percentage-based calculation. | null / null / null |
-
-### How rates are computed
-
-The platform calls `POST /api/v1/negotiate/params` with the carrier's tier to get `open_pct`, `ceiling_pct`, and optional `offered_rate_override`. It then computes:
-
-```
-offered_rate  = loadboard_rate × open_pct  (or override if set)
-ceiling_rate  = loadboard_rate × ceiling_pct
-followup_rate = midpoint of offered and ceiling (computed by platform)
-```
-
-These three rates are sent to `POST /api/v1/negotiate/evaluate` along with the carrier's counter-offer.
+| `open_pct` | float | Starting offer as % of loadboard rate | 0.85 / 0.90 / 0.93 |
+| `ceiling_pct` | float | Max rate as % of loadboard rate | 1.00 / 1.03 / 1.07 |
+| `offered_rate_override` | float or null | Hard dollar override (null = use %) | null / null / null |
 
 ### Negotiation decision ladder
-
-The backend (`POST /api/v1/negotiate/evaluate`) takes the platform-computed rates + the carrier's counter and returns a deterministic decision:
 
 | Round | carrier ≤ offered | carrier ≤ followup | carrier ≤ ceiling | carrier > ceiling |
 |---|---|---|---|---|
@@ -172,73 +257,14 @@ The backend (`POST /api/v1/negotiate/evaluate`) takes the platform-computed rate
 
 ### Server-side round tracking
 
-Do **not** send `round_number` in the request body — it is not accepted. Always send **`mc_number`** and **`load_id`** with every `/negotiate/evaluate` call:
-
-- The API stores the current negotiation round per `(mc_number, load_id)` in the `negotiation_sessions` table.
-- Each **`counter`** response advances the stored round (capped at 2).
-- **`accept`** or **`reject`** clears the session for that pair.
-- If there is **no call for 3 minutes**, the round resets to **0** (idle TTL).
-
-The response includes **`round_number`**: the round the server used for this evaluation (for logging or debugging only).
-
-### Dashboard usage example
-
-```bash
-# Make the "new" tier more aggressive (lower open, tighter ceiling)
-curl -X PUT "https://hr-carrier-sales-production.up.railway.app/api/v1/dashboard/config" \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: hr-carrier-sales-2026-prod" \
-  -d '{
-    "tier": "new",
-    "open_pct": 0.82,
-    "ceiling_pct": 0.97,
-    "max_rounds": 3,
-    "urgency_boost_pct": 0.03,
-    "escalation_sensitivity": "high",
-    "offered_rate_override": null
-  }'
-```
-
-Changes take effect on the next call — no redeploy needed.
-
-## Database
-
-SQLite locally (`data/carrier_sales.db`), swap to PostgreSQL by changing `DATABASE_URL` in `.env`:
-
-```
-# SQLite (default)
-DATABASE_URL=sqlite+aiosqlite:///./data/carrier_sales.db
-
-# PostgreSQL
-DATABASE_URL=postgresql+asyncpg://user:password@host:5432/dbname
-```
-
-No code changes needed — SQLAlchemy handles both.
-
-Tables: `loads`, `carriers`, `calls`, `events`, `negotiation_configs`, `negotiation_sessions`.
-
-## Azure Blob Storage (audit trail)
-
-Every call logged via `POST /api/v1/calls/log` is also uploaded to Azure Blob Storage as an immutable JSON file. This provides a compliance-grade audit trail — if a carrier disputes a negotiation, the brokerage has the complete event record with timestamps.
-
-**Blob path structure:**
-```
-carrier-sales-events/
-  └── call-logs/
-      └── 2026/04/02/{call_id}.json
-```
-
-**Configuration:** Set `AZURE_STORAGE_CONNECTION_STRING` in `.env`. If empty, blob uploads are silently skipped — calls are still logged to the local database. The upload is fire-and-forget: a failed upload never blocks the API response.
-
-### Call log payload (HappyRobot post-call event)
-
-The API accepts alternate field names from the platform: `origin` → `requested_origin`, `destination` → `requested_destination`, `duration` → `call_duration_seconds`. Optional metadata: `timedate`, `p90_latency`, `miles`, `classification` (used as `outcome` when `outcome` is missing or placeholder `"0"`). Empty strings for numeric fields are coerced to null / zero.
-
-If `margin_retained_pct` is omitted but `loadboard_rate` and `final_rate` are present, margin is computed as `(loadboard_rate - final_rate) / loadboard_rate × 100`.
+Send `mc_number` and `load_id` with every `/negotiate/evaluate` call — round is tracked server-side:
+- Each `counter` advances the round (capped at 2)
+- `accept` or `reject` clears the session
+- 3-minute idle TTL resets round to 0
 
 ## Auth
 
-All endpoints require `x-api-key` header. Set `API_KEY` in `.env`. Default for dev: `dev-api-key`.
+All endpoints require `x-api-key` header. Set `API_KEY` in `.env`. Default for local dev: `dev-api-key`.
 
 ## Makefile commands
 

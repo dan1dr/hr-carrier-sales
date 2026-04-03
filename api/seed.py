@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from sqlalchemy import select, func, text
+from sqlalchemy import select, func
 
 from api.database import (
     engine, async_session, Base,

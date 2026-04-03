@@ -5,44 +5,45 @@
 - [x] Deploy API to cloud — live at `https://hr-carrier-sales-production.up.railway.app`
 - [x] API key authentication on all endpoints (`x-api-key` header)
 - [x] HTTPS in production (Railway + Let's Encrypt)
-- [x] Carrier lookup endpoint (`GET /api/v1/carrier/lookup/{mc_number}`) — DB-based, returns eligibility + tier
-- [x] Load search engine with adaptive multi-factor scoring (origin, destination, equipment, dates, weight, miles, urgency)
+- [x] Carrier lookup endpoint (`GET /api/v1/carrier/lookup/{mc_number}`)
+- [x] Load search engine with adaptive multi-factor scoring
 - [x] Direct load lookup by `load_id`
-- [x] Negotiation pricing params endpoint (`POST /api/v1/negotiate/params`) — returns tier-specific `open_pct`, `ceiling_pct`, `offered_rate_override`
-- [x] Deterministic negotiation engine (`POST /api/v1/negotiate/evaluate`) — accept / counter / reject based on round + rate bands
+- [x] Negotiation pricing params endpoint (`POST /api/v1/negotiate/params`)
+- [x] Deterministic negotiation engine (`POST /api/v1/negotiate/evaluate`)
 - [x] Server-side round tracking per `(mc_number, load_id)` with 3-minute idle TTL
-- [x] Call logging with event store (`POST /api/v1/calls/log`) — stores call + `call_completed` event
-- [x] Dashboard metrics endpoint (`GET /api/v1/dashboard/metrics`) — funnel, outcomes, sentiment, avg margin, avg rounds
-- [x] Dashboard config endpoints (`GET/PUT /api/v1/dashboard/config`) — per-tier negotiation sliders
+- [x] Call logging with event store (`POST /api/v1/calls/log`)
+- [x] Dashboard metrics endpoint (`GET /api/v1/dashboard/metrics`)
+- [x] Dashboard config endpoints (`GET/PUT /api/v1/dashboard/config`)
 - [x] Seed data: 30 loads, 4 real carriers (FMCSA-verified MC numbers), 3 tier configs
 - [x] Docker + docker-compose setup
 - [x] Railway deployment with `railway.toml`
 - [x] CORS middleware
 - [x] Pydantic schemas with empty-string coercion for HappyRobot compatibility
 - [x] Makefile (`dev`, `seed`, `test`, `docker-up`, `docker-down`)
-- [x] Azure Blob Storage — immutable audit trail for call events (uploads to `carrier-sales-events` container on every `log_call`)
+- [x] Azure Blob Storage — immutable audit trail for call events
+- [x] PostgreSQL migration (Railway Postgres plugin + `asyncpg`)
+- [x] Dashboard frontend (React + Vite + Tailwind CSS + Chart.js)
+- [x] Dashboard deployment on Vercel (auto-deploys from `dev` branch)
+- [x] Conversion funnel (calls → verified → matched → negotiated → booked)
+- [x] Outcome breakdown chart
+- [x] Sentiment distribution chart
+- [x] Negotiation policy sliders (per carrier tier)
+- [x] Calls page with duration metrics
+- [x] Sidebar navigation (Overview, Calls, Policy)
 
-## Critical path
+## In progress
 
 - [ ] Wire HappyRobot voice workflow (system prompt + tool calls pointing at deployed API)
-- [ ] Build dashboard frontend (React + Chart.js in `dashboard/`)
-
-## Dashboard sections (when building frontend)
-
-- [ ] Conversion funnel (calls → verified → matched → negotiated → booked)
-- [ ] Negotiation waterfall chart (loadboard rate → asks → counters → agreed)
-- [ ] Outcome breakdown (booked / no_match / declined / failed_verification / escalated)
-- [ ] Sentiment distribution (positive / neutral / negative / frustrated)
-- [ ] Negotiation policy sliders (per carrier tier: open %, ceiling %, max rounds)
-- [ ] Call log table with drill-down
 
 ## Nice to have
 
+- [ ] Call log table with drill-down (needs `GET /api/v1/calls` endpoint)
+- [ ] Latency metrics per conversation
 - [ ] Azure Entra ID for dashboard RBAC (admin / viewer roles)
-- [ ] PostgreSQL migration (swap SQLite → Azure Database for PostgreSQL)
 - [ ] Unit tests for negotiation engine (all policy branches)
 - [ ] Unit tests for load search scoring
 - [ ] HMAC webhook signature verification
+- [ ] Dashboard date-range filtering
 
 ## Docs & deliverables
 
