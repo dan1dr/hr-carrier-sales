@@ -226,10 +226,10 @@ Set `AZURE_STORAGE_CONNECTION_STRING` in `.env`. If empty, blob uploads are sile
 
 | MC Number | Carrier | Tier | Status |
 |---|---|---|---|
-| MC-1580211 | GREYHOUND TRANSPORTATION INC | verified | Eligible |
-| MC-260313 | WANNEMACHER ENTERPRISES INC | new | Eligible |
-| MC-115554 | HEARTLAND EXPRESS INC OF IOWA | premium | Eligible |
-| MC-138328 | WERNER ENTERPRISES INC | verified | Eligible |
+| 1580211 | GREYHOUND TRANSPORTATION INC | verified | Eligible |
+| 260313 | WANNEMACHER ENTERPRISES INC | new | Eligible |
+| 115554 | HEARTLAND EXPRESS INC OF IOWA | premium | Eligible |
+| 138328 | WERNER ENTERPRISES INC | verified | Eligible |
 
 Any MC number not in the database returns `found: false` with tier `new` and `eligible_to_book: false`.
 
