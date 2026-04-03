@@ -8,8 +8,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY api/ api/
 COPY data/ data/
 
-RUN python -m api.seed
-
 ENV PORT=8000
 EXPOSE ${PORT}
 

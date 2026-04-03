@@ -5,6 +5,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from sqlalchemy import select, func, text
+
 from api.database import (
     engine, async_session, Base,
     LoadRow, CarrierRow, NegotiationConfigRow,
@@ -14,17 +16,20 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 
 async def seed():
+    async with async_session() as db:
+        try:
+            load_count = (await db.execute(select(func.count(LoadRow.load_id)))).scalar() or 0
+            if load_count > 0:
+                print(f"Database already has {load_count} loads — skipping seed.")
+                return
+        except Exception:
+            pass
+
     async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
     async with async_session() as db:
-        existing = (await db.execute(
-            __import__("sqlalchemy").select(LoadRow.load_id)
-        )).scalars().all()
-        if existing:
-            print(f"Database already has {len(existing)} loads — skipping seed.")
-            return
-
         with open(DATA_DIR / "seed_loads.json") as f:
             for item in json.load(f):
                 item["pickup_datetime"] = datetime.fromisoformat(item["pickup_datetime"])

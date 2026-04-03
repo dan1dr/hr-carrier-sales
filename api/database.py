@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Integer, Float, Text, DateTime, JSON, ForeignKey
+from sqlalchemy import Boolean, Integer, Float, Text, DateTime, JSON, ForeignKey, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
@@ -51,7 +51,7 @@ class CarrierRow(Base):
     out_of_service: Mapped[bool] = mapped_column(Boolean, default=False)
     eligible_to_book: Mapped[bool] = mapped_column(Boolean, default=False)
     tier: Mapped[str] = mapped_column(Text, default="new")
-    cached_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    cached_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class CallRow(Base):
@@ -74,7 +74,7 @@ class CallRow(Base):
     handoff_required: Mapped[bool] = mapped_column(Boolean, default=False)
     call_duration_seconds: Mapped[int | None] = mapped_column(Integer)
     summary: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class EventRow(Base):
@@ -84,7 +84,7 @@ class EventRow(Base):
     call_id: Mapped[str] = mapped_column(Text, nullable=False)
     event_type: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict | None] = mapped_column(JSON)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class NegotiationSessionRow(Base):
@@ -95,9 +95,7 @@ class NegotiationSessionRow(Base):
     mc_number: Mapped[str] = mapped_column(Text, primary_key=True)
     load_id: Mapped[str] = mapped_column(Text, primary_key=True)
     current_round: Mapped[int] = mapped_column(Integer, default=0)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
-    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class NegotiationConfigRow(Base):
@@ -110,7 +108,7 @@ class NegotiationConfigRow(Base):
     urgency_boost_pct: Mapped[float] = mapped_column(Float, default=0.05)
     escalation_sensitivity: Mapped[str] = mapped_column(Text, default="medium")
     offered_rate_override: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 # ── Engine / Session ────────────────────────────────────────────────────────
@@ -120,8 +118,7 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 
 
 async def init_db() -> None:
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    pass
 
 
 async def get_db() -> AsyncSession:  # type: ignore[misc]
